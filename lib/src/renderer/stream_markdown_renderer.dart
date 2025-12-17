@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart' show SelectionArea;
 import 'package:flutter/rendering.dart';
@@ -398,9 +399,13 @@ class RenderStreamMarkdown extends RenderBox {
     _clearChildren();
 
     _subscription = stream.listen(
-      _onMarkdownReceived,
+      (data) {
+        _onMarkdownReceived(data);
+      },
       onError: _onError,
-      onDone: _onDone,
+      onDone: () {
+        _onDone();
+      },
     );
 
     // Start cursor blinking
@@ -561,6 +566,7 @@ class RenderStreamMarkdown extends RenderBox {
   }
 
   void _onError(Object error, StackTrace stackTrace) {
+    log('[StreamMarkdownRenderer] Error: $error\n$stackTrace');
     // Handle error gracefully - keep showing current content
   }
 
@@ -569,6 +575,14 @@ class RenderStreamMarkdown extends RenderBox {
     _isStreaming = false;
     _cursorTimer?.cancel();
     _cursorTimer = null;
+
+    // Flush remaining buffer to ensure all text is shown
+    if (_characterBuffer.isNotEmpty) {
+      _emittedText += _characterBuffer.join();
+      _characterBuffer.clear();
+      _scheduleUpdate(_emittedText);
+    }
+    _emitTimer?.cancel();
 
     if (_currentBlocks.isNotEmpty && _currentBlocks.last.isPartial) {
       final lastBlock = _currentBlocks.removeLast();
@@ -623,10 +637,8 @@ class RenderStreamMarkdown extends RenderBox {
       }
     }
 
-    size = Size(
-      constraints.maxWidth,
-      currentY > 0 ? currentY : 0,
-    );
+    final desiredHeight = currentY > 0 ? currentY : 0.0;
+    size = constraints.constrain(Size(constraints.maxWidth, desiredHeight));
   }
 
   @override
@@ -664,8 +676,9 @@ class RenderStreamMarkdown extends RenderBox {
 
       if (cursorOffset != null) {
         // Position cursor at the end of last block's text
+        // The cursor should extend downward from the baseline
         final cursorX = offset.dx + cursorOffset.dx;
-        final cursorY = lastChildY + cursorOffset.dy - height / 2;
+        final cursorY = lastChildY + cursorOffset.dy;
 
         canvas.drawRRect(
           RRect.fromRectAndRadius(
