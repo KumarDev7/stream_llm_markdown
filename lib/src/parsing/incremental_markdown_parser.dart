@@ -443,6 +443,7 @@ class IncrementalMarkdownParser {
     final pattern = isOrdered ? _orderedListPattern : _unorderedListPattern;
     int? startNumber;
     final indentPrefix = '  ' * indentLevel;
+    String? extraIndent;
 
     while (j < lines.length) {
       var line = lines[j];
@@ -458,11 +459,14 @@ class IncrementalMarkdownParser {
       final match = pattern.firstMatch(line);
 
       if (match != null) {
+        final currentIndent = match.group(1) ?? '';
+        extraIndent ??= currentIndent;
+
         if (isOrdered && startNumber == null) {
-          startNumber = int.tryParse(match.group(1) ?? '1') ?? 1;
+          startNumber = int.tryParse(match.group(2) ?? '1') ?? 1;
         }
 
-        var content = match.group(isOrdered ? 2 : 1)!;
+        var content = match.group(isOrdered ? 3 : 2)!;
         bool? isChecked;
 
         // Check for task list item
@@ -479,10 +483,10 @@ class IncrementalMarkdownParser {
         });
         j++;
 
-        // Check for nested lists (indented by 2 more spaces)
+        // Check for nested lists (indented by 2 more spaces relative to current item)
         if (j < lines.length) {
           final nextLine = lines[j];
-          final nestedIndent = '$indentPrefix  ';
+          final nestedIndent = '$indentPrefix$extraIndent  ';
 
           if (nextLine.startsWith(nestedIndent)) {
             final strippedLine = nextLine.substring(nestedIndent.length);
@@ -497,7 +501,7 @@ class IncrementalMarkdownParser {
                 j,
                 blockIndex,
                 isOrdered: nestedOrdered,
-                indentLevel: indentLevel + 1,
+                indentLevel: indentLevel + 1 + (extraIndent!.length ~/ 2),
               );
 
               if (nestedResult.block != null) {
@@ -516,7 +520,7 @@ class IncrementalMarkdownParser {
         // Handle continuation lines (indented content that's not a nested list)
         while (j < lines.length) {
           final nextLine = lines[j];
-          final contIndent = '$indentPrefix  ';
+          final contIndent = '$indentPrefix$extraIndent  ';
           if (nextLine.startsWith(contIndent)) {
             final strippedLine = nextLine.substring(contIndent.length);
             // Make sure it's not a list item
@@ -531,6 +535,42 @@ class IncrementalMarkdownParser {
             }
           } else {
             break;
+          }
+        }
+
+        // Check for nested lists again (after continuation lines)
+        if (j < lines.length) {
+          final nextLine = lines[j];
+          final nestedIndent = '$indentPrefix$extraIndent  ';
+
+          if (nextLine.startsWith(nestedIndent)) {
+            final strippedLine = nextLine.substring(nestedIndent.length);
+            final nestedOrdered = _orderedListPattern.hasMatch(strippedLine);
+            final nestedUnordered =
+                _unorderedListPattern.hasMatch(strippedLine);
+
+            if (nestedOrdered || nestedUnordered) {
+              // Parse nested list
+              final nestedResult = _parseList(
+                lines,
+                j,
+                blockIndex,
+                isOrdered: nestedOrdered,
+                indentLevel: indentLevel + 1 + (extraIndent!.length ~/ 2),
+              );
+
+              if (nestedResult.block != null) {
+                final nestedItems =
+                    nestedResult.block!.metadata['items'] as List<dynamic>?;
+                if (nestedItems != null) {
+                  final existingChildren =
+                      items.last['children'] as List<dynamic>;
+                  existingChildren.addAll(nestedItems);
+                }
+              }
+              j = nestedResult.nextIndex;
+              continue;
+            }
           }
         }
       } else if (line.trim().isEmpty) {
@@ -668,16 +708,18 @@ class IncrementalMarkdownParser {
   }
 
   String _generateId(MarkdownBlockType type, String content, int index) {
-    // Generate a stable ID based on type, content hash, and position
-    final contentHash = content.hashCode.toRadixString(36);
-    return '${type.name}_${index}_$contentHash';
+    // Generate a stable ID based on type and position (index).
+    // content hash is deliberately excluded to ensure the ID remains stable
+    // as content grows during streaming, allowing the renderer to update
+    // existing RenderObjects instead of recreating them.
+    return '${type.name}_$index';
   }
 
   // Patterns
   static final _headerPattern = RegExp(r'^(#{1,6})\s+(.*)$');
   static final _fencedCodePattern = RegExp(r'^(`{3,}|~{3,})(.*)$');
-  static final _orderedListPattern = RegExp(r'^(\d+)\.\s+(.*)$');
-  static final _unorderedListPattern = RegExp(r'^[-*+]\s+(.*)$');
+  static final _orderedListPattern = RegExp(r'^(\s*)(\d+)\.\s+(.*)$');
+  static final _unorderedListPattern = RegExp(r'^(\s*)[-*+]\s+(.*)$');
   static final _taskListPattern = RegExp(r'^\[([xX ])\]\s+(.*)$');
   static final _htmlBlockPattern = RegExp('^<([a-zA-Z][a-zA-Z0-9]*)[^>]*>');
 }
