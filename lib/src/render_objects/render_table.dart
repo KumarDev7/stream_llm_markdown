@@ -8,7 +8,8 @@ import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
 /// Renders a table.
-class RenderMarkdownTable extends RenderMarkdownBlock with SelectableTextMixin {
+class RenderMarkdownTable extends RenderMarkdownBlock
+    with SelectableTextMixin, RelayoutWhenSystemFontsChangeMixin {
   /// Creates a new render table.
   RenderMarkdownTable({
     required super.block,
@@ -61,6 +62,7 @@ class RenderMarkdownTable extends RenderMarkdownBlock with SelectableTextMixin {
 
   @override
   void invalidateCache() {
+    _spanBuilder.dispose();
     for (final row in _cellPainters) {
       for (final painter in row) {
         painter.dispose();
@@ -72,6 +74,21 @@ class RenderMarkdownTable extends RenderMarkdownBlock with SelectableTextMixin {
     _selectableItems.clear();
     _cachedPlainText = '';
     super.invalidateCache();
+  }
+
+  @override
+  void systemFontsDidChange() {
+    _spanBuilder.dispose();
+    for (final row in _cellPainters) {
+      for (final painter in row) {
+        painter.dispose();
+      }
+    }
+    _cellPainters.clear();
+    _columnWidths = [];
+    _rowHeights = [];
+    _lastContent = '';
+    super.systemFontsDidChange();
   }
 
   @override

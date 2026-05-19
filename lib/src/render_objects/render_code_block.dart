@@ -7,7 +7,7 @@ import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
 class RenderMarkdownCodeBlock extends RenderMarkdownBlock
-    with SelectableTextMixin {
+    with SelectableTextMixin, RelayoutWhenSystemFontsChangeMixin {
   RenderMarkdownCodeBlock({
     required super.block,
     required super.theme,
@@ -50,6 +50,14 @@ class RenderMarkdownCodeBlock extends RenderMarkdownBlock
     _codePainter = null;
     _labelPainter = null;
     super.invalidateCache();
+  }
+
+  @override
+  void systemFontsDidChange() {
+    _codePainter = null;
+    _labelPainter = null;
+    _lastContent = '';
+    super.systemFontsDidChange();
   }
 
   TextPainter _getCodePainter(double maxWidth) {

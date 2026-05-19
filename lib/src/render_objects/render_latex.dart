@@ -3,7 +3,8 @@ import 'package:flutter/rendering.dart';
 import 'base/render_markdown_block.dart';
 
 /// Renders a LaTeX block (placeholder rendering).
-class RenderMarkdownLatex extends RenderMarkdownBlock {
+class RenderMarkdownLatex extends RenderMarkdownBlock
+    with RelayoutWhenSystemFontsChangeMixin {
   /// Creates a new render latex.
   RenderMarkdownLatex({
     required super.block,
@@ -23,6 +24,14 @@ class RenderMarkdownLatex extends RenderMarkdownBlock {
     _textPainter?.dispose();
     _textPainter = null;
     super.invalidateCache();
+  }
+
+  @override
+  void systemFontsDidChange() {
+    _textPainter?.dispose();
+    _textPainter = null;
+    _lastContent = '';
+    super.systemFontsDidChange();
   }
 
   TextPainter _getTextPainter(double maxWidth) {

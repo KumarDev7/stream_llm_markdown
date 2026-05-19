@@ -9,7 +9,7 @@ import 'mixins/selectable_text_mixin.dart';
 
 /// Renders a blockquote.
 class RenderMarkdownBlockquote extends RenderMarkdownBlock
-    with SelectableTextMixin {
+    with SelectableTextMixin, RelayoutWhenSystemFontsChangeMixin {
   /// Creates a new render blockquote.
   RenderMarkdownBlockquote({
     required super.block,
@@ -40,10 +40,19 @@ class RenderMarkdownBlockquote extends RenderMarkdownBlock
 
   @override
   void invalidateCache() {
+    _spanBuilder.dispose();
     _disposePainters();
     _selectableItems.clear();
     _cachedPlainText = '';
     super.invalidateCache();
+  }
+
+  @override
+  void systemFontsDidChange() {
+    _spanBuilder.dispose();
+    _disposePainters();
+    _lastContent = '';
+    super.systemFontsDidChange();
   }
 
   void _disposePainters() {

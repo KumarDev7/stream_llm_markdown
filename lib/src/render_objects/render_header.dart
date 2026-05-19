@@ -6,7 +6,7 @@ import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
 class RenderMarkdownHeader extends RenderMarkdownBlock
-    with SelectableTextMixin {
+    with SelectableTextMixin, RelayoutWhenSystemFontsChangeMixin {
   RenderMarkdownHeader({
     required super.block,
     required super.theme,
@@ -29,10 +29,17 @@ class RenderMarkdownHeader extends RenderMarkdownBlock
 
   @override
   void invalidateCache() {
-    // Don't dispose painter here as it might still be referenced
-    // by the selection system during updates. Let GC handle it.
+    _spanBuilder.dispose();
     _textPainter = null;
     super.invalidateCache();
+  }
+
+  @override
+  void systemFontsDidChange() {
+    _spanBuilder.dispose();
+    _textPainter = null;
+    _lastContent = '';
+    super.systemFontsDidChange();
   }
 
   TextPainter _getTextPainter(double maxWidth) {

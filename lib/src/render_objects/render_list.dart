@@ -7,7 +7,8 @@ import '../theme/markdown_theme.dart';
 import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
-class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
+class RenderMarkdownList extends RenderMarkdownBlock
+    with SelectableTextMixin, RelayoutWhenSystemFontsChangeMixin {
   RenderMarkdownList({
     required super.block,
     required super.theme,
@@ -45,6 +46,7 @@ class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
 
   @override
   void invalidateCache() {
+    _spanBuilder.dispose();
     for (final painter in _itemPainters) {
       painter.dispose();
     }
@@ -54,6 +56,18 @@ class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
     _selectableItems.clear();
     _cachedPlainText = '';
     super.invalidateCache();
+  }
+
+  @override
+  void systemFontsDidChange() {
+    _spanBuilder.dispose();
+    for (final painter in _itemPainters) {
+      painter.dispose();
+    }
+    _itemPainters.clear();
+    _checkboxRects.clear();
+    _lastContent = '';
+    super.systemFontsDidChange();
   }
 
   void _disposeNestedLists() {
