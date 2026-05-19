@@ -77,6 +77,15 @@ mixin SelectableTextMixin on RenderBox {
     }
   }
 
+  /// The color used for selection highlights.
+  Color? _selectionColor;
+  Color? get selectionColor => _selectionColor;
+  set selectionColor(Color? value) {
+    if (_selectionColor == value) return;
+    _selectionColor = value;
+    markNeedsPaint();
+  }
+
   /// Initializes the selectable fragment after layout.
   void initSelectableIfNeeded() {
     if (!_selectionEnabled || _registrar == null) return;
@@ -111,7 +120,7 @@ mixin SelectableTextMixin on RenderBox {
 
     if (selection == null || selectionEnd == null) return;
 
-    const selectionColor = Color(0x663399FF);
+    final effectiveSelectionColor = _selectionColor ?? const Color(0x663399FF);
     final boxes = getBoxesForSelection(
       TextSelection(
         baseOffset: selection.offset,
@@ -122,7 +131,7 @@ mixin SelectableTextMixin on RenderBox {
     for (final box in boxes) {
       context.canvas.drawRect(
         box.toRect().shift(offset + textPaintOffset),
-        Paint()..color = selectionColor,
+        Paint()..color = effectiveSelectionColor,
       );
     }
 
@@ -136,7 +145,6 @@ mixin SelectableTextMixin on RenderBox {
           LeaderLayer(
             link: _selectable!._startHandleLayerLink!,
             offset: offset +
-                textPaintOffset +
                 value.startSelectionPoint!.localPosition,
           ),
           (context, offset) {},
@@ -150,7 +158,6 @@ mixin SelectableTextMixin on RenderBox {
           LeaderLayer(
             link: _selectable!._endHandleLayerLink!,
             offset: offset +
-                textPaintOffset +
                 value.endSelectionPoint!.localPosition,
           ),
           (context, offset) {},
@@ -384,13 +391,13 @@ class _SelectableFragment implements Selectable {
   SelectionResult _handleClear() {
     _textSelectionStart = null;
     _textSelectionEnd = null;
-    return SelectionResult.none;
+    return SelectionResult.end;
   }
 
   SelectionResult _handleSelectAll() {
     _textSelectionStart = const TextPosition(offset: 0);
     _textSelectionEnd = TextPosition(offset: paragraph.plainText.length);
-    return SelectionResult.none;
+    return SelectionResult.end;
   }
 
   SelectionResult _handleSelectWord(Offset globalPosition) {

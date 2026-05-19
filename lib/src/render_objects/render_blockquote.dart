@@ -16,14 +16,21 @@ class RenderMarkdownBlockquote extends RenderMarkdownBlock
     required super.theme,
     super.onLinkTapped,
     super.onCheckboxTapped,
-  });
+    SelectionRegistrar? selectionRegistrar,
+  }) {
+    registrar = selectionRegistrar;
+  }
 
   final List<TextPainter> _painters = [];
-  final _spanBuilder = const InlineSpanBuilder();
+  final _spanBuilder = InlineSpanBuilder();
 
   // Selection support
   final List<_SelectableItem> _selectableItems = [];
   String _cachedPlainText = '';
+
+  // Caching for performLayout
+  double? _lastWidth;
+  String _lastContent = '';
 
   BlockquoteTheme get _blockquoteTheme =>
       theme.blockquoteTheme ?? const BlockquoteTheme();
@@ -283,7 +290,15 @@ class RenderMarkdownBlockquote extends RenderMarkdownBlock
 
   @override
   void performLayout() {
-    _disposePainters();
+    // Only rebuild painters if content or width changed
+    if (_lastWidth != constraints.maxWidth || block.content != _lastContent) {
+      _disposePainters();
+      _selectableItems.clear();
+      _cachedPlainText = '';
+      _lastWidth = constraints.maxWidth;
+      _lastContent = block.content;
+    }
+
     final height = computeIntrinsicHeight(constraints.maxWidth);
     size = Size(constraints.maxWidth, height);
 

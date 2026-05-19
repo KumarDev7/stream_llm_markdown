@@ -1,3 +1,7 @@
+// RenderBox is imported to allow custom patterns to return their own
+// RenderObjects. This couples the parsing module to Flutter's rendering layer
+// because MarkdownPattern.createRenderObject must return a RenderBox that
+// integrates with the 100% RenderObject-based rendering pipeline.
 import 'package:flutter/rendering.dart';
 import '../theme/markdown_theme.dart';
 import 'markdown_block.dart';

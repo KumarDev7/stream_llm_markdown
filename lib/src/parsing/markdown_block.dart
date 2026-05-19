@@ -64,8 +64,12 @@ class MarkdownBlock {
       id: id ?? this.id,
       type: type ?? this.type,
       content: content ?? this.content,
-      metadata: metadata ?? this.metadata,
-      children: children ?? this.children,
+      metadata: metadata != null
+          ? Map<String, dynamic>.from(metadata)
+          : Map<String, dynamic>.from(this.metadata),
+      children: children != null
+          ? List<MarkdownBlock>.from(children)
+          : List<MarkdownBlock>.from(this.children),
       isPartial: isPartial ?? this.isPartial,
     );
   }
@@ -73,13 +77,16 @@ class MarkdownBlock {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is MarkdownBlock &&
-        other.id == id &&
-        other.type == type &&
-        other.content == content &&
-        mapEquals(other.metadata, metadata) &&
-        listEquals(other.children, children) &&
-        other.isPartial == isPartial;
+    if (other is! MarkdownBlock) return false;
+    // Fast path: if IDs differ, definitely not equal
+    if (other.id != id) return false;
+    if (other.isPartial != isPartial) return false;
+    // Content comparison is the most expensive — check it early
+    if (other.content != content) return false;
+    if (other.type != type) return false;
+    if (!mapEquals(other.metadata, metadata)) return false;
+    if (!listEquals(other.children, children)) return false;
+    return true;
   }
 
   @override
@@ -87,7 +94,7 @@ class MarkdownBlock {
         id,
         type,
         content,
-        Object.hashAll(metadata.entries),
+        Object.hashAllUnordered(metadata.entries),
         Object.hashAll(children),
         isPartial,
       );

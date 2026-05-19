@@ -23,8 +23,11 @@ abstract class RenderMarkdownBlock extends RenderBox {
   MarkdownBlock _block;
   set block(MarkdownBlock value) {
     if (_block == value) return;
+    final contentChanged = _block.content != value.content;
     _block = value;
-    invalidateCache();
+    if (contentChanged) {
+      invalidateCache();
+    }
     markNeedsLayout();
   }
 

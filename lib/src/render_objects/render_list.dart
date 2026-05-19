@@ -15,12 +15,19 @@ class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
     required super.theme,
     super.onLinkTapped,
     super.onCheckboxTapped,
-  });
+    SelectionRegistrar? selectionRegistrar,
+  }) {
+    registrar = selectionRegistrar;
+  }
 
   final List<TextPainter> _itemPainters = [];
-  final _spanBuilder = const InlineSpanBuilder();
+  final _spanBuilder = InlineSpanBuilder();
   final List<Rect> _checkboxRects = [];
   final List<_NestedListInfo> _nestedLists = [];
+
+  // Caching for performLayout
+  double? _lastWidth;
+  String _lastContent = '';
 
   // Selection support
   final List<_SelectableItem> _selectableItems = [];
@@ -242,12 +249,19 @@ class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
 
   @override
   void performLayout() {
-    for (final painter in _itemPainters) {
-      painter.dispose();
+    // Only rebuild painters if content or width changed
+    if (_lastWidth != constraints.maxWidth || block.content != _lastContent) {
+      for (final painter in _itemPainters) {
+        painter.dispose();
+      }
+      _itemPainters.clear();
+      _checkboxRects.clear();
+      _disposeNestedLists();
+      _selectableItems.clear();
+      _cachedPlainText = '';
+      _lastWidth = constraints.maxWidth;
+      _lastContent = block.content;
     }
-    _itemPainters.clear();
-    _checkboxRects.clear();
-    _disposeNestedLists();
 
     final height = computeIntrinsicHeight(constraints.maxWidth);
     size = Size(constraints.maxWidth, height);

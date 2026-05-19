@@ -15,12 +15,19 @@ class RenderMarkdownTable extends RenderMarkdownBlock with SelectableTextMixin {
     required super.theme,
     super.onLinkTapped,
     super.onCheckboxTapped,
-  });
+    SelectionRegistrar? selectionRegistrar,
+  }) {
+    registrar = selectionRegistrar;
+  }
 
   final List<List<TextPainter>> _cellPainters = [];
-  final _spanBuilder = const InlineSpanBuilder();
+  final _spanBuilder = InlineSpanBuilder();
   List<double> _columnWidths = [];
   List<double> _rowHeights = [];
+
+  // Caching for performLayout
+  double? _lastWidth;
+  String _lastContent = '';
 
   // Selection support
   final List<_SelectableItem> _selectableItems = [];
@@ -266,15 +273,20 @@ class RenderMarkdownTable extends RenderMarkdownBlock with SelectableTextMixin {
 
   @override
   void performLayout() {
-    for (final row in _cellPainters) {
-      for (final painter in row) {
-        painter.dispose();
+    // Only rebuild cell painters if content or width changed
+    if (_lastWidth != constraints.maxWidth || block.content != _lastContent) {
+      for (final row in _cellPainters) {
+        for (final painter in row) {
+          painter.dispose();
+        }
       }
+      _cellPainters.clear();
+      _columnWidths = [];
+      _rowHeights = [];
+      _selectableItems.clear();
+      _lastWidth = constraints.maxWidth;
+      _lastContent = block.content;
     }
-    _cellPainters.clear();
-    _columnWidths = [];
-    _rowHeights = [];
-    _selectableItems.clear();
 
     final height = computeIntrinsicHeight(constraints.maxWidth);
     size = Size(constraints.maxWidth, height);

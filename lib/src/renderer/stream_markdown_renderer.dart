@@ -209,11 +209,12 @@ class RenderStreamMarkdown extends RenderBox {
   bool _cursorVisible = true;
   Timer? _cursorTimer;
 
-  // Character emission state
+  // Character emission state (frame-aligned batching)
   String _accumulatedSourceText = '';
-  String _emittedText = '';
-  final List<String> _characterBuffer = [];
-  Timer? _emitTimer;
+  int _emittedLength = 0;
+  int _lastEmitTimestamp = 0;
+  bool _frameCallbackScheduled = false;
+  int _emitFrameCallbackId = 0;
 
   /// Delay between character emissions.
   Duration? get characterDelay => _characterDelay;
@@ -222,16 +223,21 @@ class RenderStreamMarkdown extends RenderBox {
     if (_characterDelay == value) return;
     _characterDelay = value;
 
-    // If delay changes, we might need to adjust the timer
-    _emitTimer?.cancel();
-    if (_characterBuffer.isNotEmpty) {
+    // Cancel any pending frame callback
+    if (_frameCallbackScheduled) {
+      _frameCallbackScheduled = false;
+      SchedulerBinding.instance.cancelFrameCallbackWithId(_emitFrameCallbackId);
+    }
+
+    if (_accumulatedSourceText.isNotEmpty) {
       if (value != null && value != Duration.zero) {
-        _startEmitTimer();
+        // Restart emission with new delay
+        _lastEmitTimestamp = 0;
+        _scheduleNextEmit();
       } else {
-        // Flush buffer if delay is removed
-        _emittedText += _characterBuffer.join();
-        _characterBuffer.clear();
-        _scheduleUpdate(_emittedText);
+        // Flush all characters immediately
+        _emittedLength = _accumulatedSourceText.length;
+        _scheduleUpdate(_accumulatedSourceText);
       }
     }
   }
@@ -338,10 +344,12 @@ class RenderStreamMarkdown extends RenderBox {
 
   /// The stream of Markdown content.
   Stream<String>? _markdownStream;
-  Stream<String> get markdownStream => _markdownStream!;
-  set markdownStream(Stream<String> value) {
+  Stream<String>? get markdownStream => _markdownStream;
+  set markdownStream(Stream<String>? value) {
     if (_markdownStream == value) return;
-    _subscribeToStream(value);
+    if (value != null) {
+      _subscribeToStream(value);
+    }
   }
 
   /// The theme for rendering.
@@ -354,6 +362,7 @@ class RenderStreamMarkdown extends RenderBox {
       child.theme = value;
     }
     markNeedsLayout();
+    markNeedsPaint();
   }
 
   /// Callback when a link is tapped.
@@ -382,6 +391,13 @@ class RenderStreamMarkdown extends RenderBox {
   void _subscribeToStream(Stream<String> stream) {
     _subscription?.cancel();
     _cursorTimer?.cancel();
+
+    // Cancel any pending frame callback
+    if (_frameCallbackScheduled) {
+      _frameCallbackScheduled = false;
+      SchedulerBinding.instance.cancelFrameCallbackWithId(_emitFrameCallbackId);
+    }
+
     _markdownStream = stream;
     _currentMarkdown = '';
     _pendingMarkdown = '';
@@ -391,9 +407,9 @@ class RenderStreamMarkdown extends RenderBox {
     _cursorVisible = true;
 
     _accumulatedSourceText = '';
-    _emittedText = '';
-    _characterBuffer.clear();
-    _emitTimer?.cancel();
+    _emittedLength = 0;
+    _lastEmitTimestamp = 0;
+    _frameCallbackScheduled = false;
 
     // Clear existing children
     _clearChildren();
@@ -427,39 +443,65 @@ class RenderStreamMarkdown extends RenderBox {
     // Handle reset or non-incremental updates
     if (rawMarkdown.length < _accumulatedSourceText.length) {
       _accumulatedSourceText = rawMarkdown;
-      _emittedText = rawMarkdown;
-      _characterBuffer.clear();
-      _emitTimer?.cancel();
-      _scheduleUpdate(_emittedText);
+      _emittedLength = rawMarkdown.length;
+      _lastEmitTimestamp = 0;
+      if (_frameCallbackScheduled) {
+        _frameCallbackScheduled = false;
+        SchedulerBinding.instance.cancelFrameCallbackWithId(_emitFrameCallbackId);
+      }
+      _scheduleUpdate(rawMarkdown);
       return;
     }
 
-    final newText = rawMarkdown.substring(_accumulatedSourceText.length);
     _accumulatedSourceText = rawMarkdown;
 
     if (_characterDelay != null && _characterDelay != Duration.zero) {
-      for (var char in newText.split('')) {
-        _characterBuffer.add(char);
-      }
-      _startEmitTimer();
+      _scheduleNextEmit();
     } else {
-      _emittedText = rawMarkdown;
-      _characterBuffer.clear();
-      _emitTimer?.cancel();
-      _scheduleUpdate(_emittedText);
+      _emittedLength = rawMarkdown.length;
+      _scheduleUpdate(rawMarkdown);
     }
   }
 
-  void _startEmitTimer() {
-    if (_emitTimer?.isActive ?? false) return;
-    _emitTimer = Timer.periodic(_characterDelay!, (timer) {
-      if (_characterBuffer.isEmpty) {
-        timer.cancel();
-        return;
-      }
-      _emittedText += _characterBuffer.removeAt(0);
-      _scheduleUpdate(_emittedText);
-    });
+  void _scheduleNextEmit() {
+    if (_frameCallbackScheduled) return;
+    if (_characterDelay == null || _characterDelay == Duration.zero) {
+      // No delay — emit everything immediately
+      _emittedLength = _accumulatedSourceText.length;
+      _scheduleUpdate(_accumulatedSourceText);
+      return;
+    }
+    _frameCallbackScheduled = true;
+    _emitFrameCallbackId = SchedulerBinding.instance.scheduleFrameCallback(_emitFrame);
+  }
+
+  void _emitFrame(Duration timestamp) {
+    _frameCallbackScheduled = false;
+    if (!attached || _emittedLength >= _accumulatedSourceText.length) return;
+
+    // Calculate how many characters to emit based on elapsed time
+    final nowUs = timestamp.inMicroseconds;
+    final remaining = _accumulatedSourceText.length - _emittedLength;
+
+    int charsToEmit;
+    if (_lastEmitTimestamp == 0) {
+      // First frame — emit initial batch (reasonable chunk for first visual update)
+      charsToEmit = remaining.clamp(1, 20);
+    } else {
+      final elapsed = nowUs - _lastEmitTimestamp;
+      charsToEmit = (elapsed / _characterDelay!.inMicroseconds).ceil().clamp(1, remaining);
+    }
+
+    _emittedLength += charsToEmit;
+    _lastEmitTimestamp = nowUs;
+
+    final text = _accumulatedSourceText.substring(0, _emittedLength);
+    _scheduleUpdate(text);
+
+    // Schedule next frame if there's more to emit
+    if (_emittedLength < _accumulatedSourceText.length) {
+      _scheduleNextEmit();
+    }
   }
 
   void _scheduleUpdate(String markdown) {
@@ -486,10 +528,22 @@ class RenderStreamMarkdown extends RenderBox {
 
     final registrar = _selectionEnabled ? _selectionRegistrar : null;
 
+    var needsRelayout = false;
+
     for (final block in _currentBlocks) {
       final existingChild = _childMap[block.id];
 
-      if (existingChild != null) {
+      // Check if the existing render object type matches what the block needs.
+      // During streaming, a block can transition (e.g., a partial custom block
+      // rendered as paragraph needs to become a custom render object once matched).
+      final needsRecreation = existingChild != null &&
+          BlockRegistry.renderObjectTypeMismatch(
+            existingRenderObject: existingChild,
+            newBlock: block,
+            customPatterns: customPatterns,
+          );
+
+      if (existingChild != null && !needsRecreation) {
         // Update existing child
         BlockRegistry.updateRenderObject(
           renderObject: existingChild,
@@ -502,6 +556,22 @@ class RenderStreamMarkdown extends RenderBox {
         );
         newChildren.add(existingChild);
         newChildMap[block.id] = existingChild;
+      } else if (existingChild != null && needsRecreation) {
+        // Type mismatch — dispose old child and create new one
+        dropChild(existingChild);
+        existingChild.dispose();
+        final child = BlockRegistry.createRenderObject(
+          block: block,
+          theme: _theme,
+          onLinkTapped: _onLinkTapped,
+          onCheckboxTapped: _onCheckboxTapped,
+          selectionRegistrar: registrar,
+          customPatterns: customPatterns,
+        );
+        adoptChild(child);
+        newChildren.add(child);
+        newChildMap[block.id] = child;
+        needsRelayout = true;
       } else {
         // Create new child
         final child = BlockRegistry.createRenderObject(
@@ -515,6 +585,7 @@ class RenderStreamMarkdown extends RenderBox {
         adoptChild(child);
         newChildren.add(child);
         newChildMap[block.id] = child;
+        needsRelayout = true;
       }
     }
 
@@ -523,7 +594,20 @@ class RenderStreamMarkdown extends RenderBox {
       if (!newChildMap.containsKey(entry.key)) {
         dropChild(entry.value);
         entry.value.dispose();
+        needsRelayout = true;
       }
+    }
+
+    // Check if child ordering/reference changed (different block IDs in same positions)
+    if (!needsRelayout && _children.length == newChildren.length) {
+      for (var i = 0; i < _children.length; i++) {
+        if (_children[i] != newChildren[i]) {
+          needsRelayout = true;
+          break;
+        }
+      }
+    } else if (_children.length != newChildren.length) {
+      needsRelayout = true;
     }
 
     _children
@@ -534,7 +618,14 @@ class RenderStreamMarkdown extends RenderBox {
       ..clear()
       ..addAll(newChildMap);
 
-    markNeedsLayout();
+    if (needsRelayout) {
+      markNeedsLayout();
+    } else {
+      // Children may have updated their content and marked themselves dirty,
+      // but the parent structure hasn't changed. Still need to mark paint
+      // in case children changed visual appearance.
+      markNeedsPaint();
+    }
 
     // Auto-scroll to bottom after layout
     if (_autoScrollToBottom && _scrollController != null && _isStreaming) {
@@ -544,6 +635,7 @@ class RenderStreamMarkdown extends RenderBox {
         // or if the content is smaller than the viewport (can't scroll yet)
         if (pos.maxScrollExtent - pos.pixels < 50 || pos.maxScrollExtent == 0) {
           SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (!attached) return;
             _scrollToBottom();
           });
         }
@@ -576,17 +668,21 @@ class RenderStreamMarkdown extends RenderBox {
     _cursorTimer?.cancel();
     _cursorTimer = null;
 
-    // Flush remaining buffer to ensure all text is shown
-    if (_characterBuffer.isNotEmpty) {
-      _emittedText += _characterBuffer.join();
-      _characterBuffer.clear();
-      _scheduleUpdate(_emittedText);
+    // Cancel any pending frame callback
+    if (_frameCallbackScheduled) {
+      _frameCallbackScheduled = false;
+      SchedulerBinding.instance.cancelFrameCallbackWithId(_emitFrameCallbackId);
     }
-    _emitTimer?.cancel();
+
+    // Flush any remaining un-emitted text
+    if (_emittedLength < _accumulatedSourceText.length) {
+      _emittedLength = _accumulatedSourceText.length;
+      _scheduleUpdate(_accumulatedSourceText);
+    }
 
     if (_currentBlocks.isNotEmpty && _currentBlocks.last.isPartial) {
-      final lastBlock = _currentBlocks.removeLast();
-      _currentBlocks.add(lastBlock.copyWith(isPartial: false));
+      _currentBlocks = List.of(_currentBlocks)..[_currentBlocks.length - 1] =
+          _currentBlocks.last.copyWith(isPartial: false);
       _updateChildren();
     }
 
@@ -597,7 +693,10 @@ class RenderStreamMarkdown extends RenderBox {
   void dispose() {
     _subscription?.cancel();
     _cursorTimer?.cancel();
-    _emitTimer?.cancel();
+    if (_frameCallbackScheduled) {
+      _frameCallbackScheduled = false;
+      SchedulerBinding.instance.cancelFrameCallbackWithId(_emitFrameCallbackId);
+    }
     _clearChildren();
     super.dispose();
   }

@@ -334,9 +334,22 @@ class _MyAppState extends State<MyApp> {
 }
 
 class RenderCustomBox extends RenderBox {
+  TextPainter? _textPainter;
+
   @override
   void performLayout() {
     size = const Size(300, 60);
+    _textPainter ??= TextPainter(
+      text: const TextSpan(
+        text: '✨ Custom Widget Pattern ✨',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
   }
 
   @override
@@ -350,26 +363,19 @@ class RenderCustomBox extends RenderBox {
 
     context.canvas.drawRRect(rrect, paint);
 
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: '✨ Custom Widget Pattern ✨',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-
-    textPainter.layout();
-    textPainter.paint(
+    _textPainter?.paint(
       context.canvas,
       offset +
           Offset(
-            (size.width - textPainter.width) / 2,
-            (size.height - textPainter.height) / 2,
+            (size.width - (_textPainter?.width ?? 0)) / 2,
+            (size.height - (_textPainter?.height ?? 0)) / 2,
           ),
     );
+  }
+
+  @override
+  void dispose() {
+    _textPainter?.dispose();
+    super.dispose();
   }
 }

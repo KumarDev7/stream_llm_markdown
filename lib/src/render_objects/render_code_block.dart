@@ -29,6 +29,8 @@ class RenderMarkdownCodeBlock extends RenderMarkdownBlock
   Offset _textOffset = Offset.zero;
 
   bool _isDisposed = false;
+  double? _lastWidth;
+  String _lastContent = '';
 
   @override
   TextPainter? get selectableTextPainter {
@@ -146,8 +148,16 @@ class RenderMarkdownCodeBlock extends RenderMarkdownBlock
   @override
   void performLayout() {
     if (_isDisposed) return;
-    // Don't dispose painters here, reuse them with new constraints
-    // via computeIntrinsicHeight -> _getCodePainter
+
+    // Invalidate painters if content or width changed
+    if (_lastWidth != constraints.maxWidth || block.content != _lastContent) {
+      _codePainter?.dispose();
+      _codePainter = null;
+      _labelPainter?.dispose();
+      _labelPainter = null;
+      _lastWidth = constraints.maxWidth;
+      _lastContent = block.content;
+    }
 
     final height = computeIntrinsicHeight(constraints.maxWidth);
     size = Size(constraints.maxWidth, height);

@@ -43,8 +43,12 @@ class BlockRegistry {
             );
           }
         }
+        // No matching pattern — render as an empty/hidden block during streaming.
+        // Custom block content is not markdown; showing it as raw text is wrong.
+        // Once a pattern match is found, the block will be recreated with the
+        // proper render object (handled by renderObjectTypeMismatch in _updateChildren).
         return RenderMarkdownParagraph(
-          block: block,
+          block: block.copyWith(content: ''),
           theme: theme,
           onLinkTapped: onLinkTapped,
           onCheckboxTapped: onCheckboxTapped,
@@ -80,6 +84,7 @@ class BlockRegistry {
           theme: theme,
           onLinkTapped: onLinkTapped,
           onCheckboxTapped: onCheckboxTapped,
+          selectionRegistrar: selectionRegistrar,
         );
       case MarkdownBlockType.orderedList:
       case MarkdownBlockType.unorderedList:
@@ -88,6 +93,7 @@ class BlockRegistry {
           theme: theme,
           onLinkTapped: onLinkTapped,
           onCheckboxTapped: onCheckboxTapped,
+          selectionRegistrar: selectionRegistrar,
         );
       case MarkdownBlockType.table:
         return RenderMarkdownTable(
@@ -95,6 +101,7 @@ class BlockRegistry {
           theme: theme,
           onLinkTapped: onLinkTapped,
           onCheckboxTapped: onCheckboxTapped,
+          selectionRegistrar: selectionRegistrar,
         );
       case MarkdownBlockType.thematicBreak:
         return RenderMarkdownThematicBreak(
@@ -120,6 +127,49 @@ class BlockRegistry {
           selectionRegistrar: selectionRegistrar,
         );
     }
+  }
+
+  /// Determines whether an existing render object needs to be recreated
+  /// because its type doesn't match what the new block requires.
+  ///
+  /// This handles the streaming case where a custom block starts as a partial
+  /// (rendered as paragraph) and then transitions to a fully matched custom
+  /// block that needs a different render object type.
+  static bool renderObjectTypeMismatch({
+    required RenderMarkdownBlock existingRenderObject,
+    required MarkdownBlock newBlock,
+    List<MarkdownPattern>? customPatterns,
+  }) {
+    final currentBlock = existingRenderObject.block;
+
+    // If block type changed entirely, definitely needs recreation
+    if (currentBlock.type != newBlock.type) {
+      return true;
+    }
+
+    // For custom blocks, check if the pattern assignment changed.
+    // A partial custom block has no patternIndex (rendered as paragraph),
+    // while a fully matched one has a patternIndex (rendered with custom RO).
+    if (newBlock.type == MarkdownBlockType.custom) {
+      final oldPatternIndex = currentBlock.metadata['patternIndex'] as int?;
+      final newPatternIndex = newBlock.metadata['patternIndex'] as int?;
+
+      // If patternIndex changed (including null→non-null or vice versa),
+      // the render object type changes.
+      if (oldPatternIndex != newPatternIndex) {
+        return true;
+      }
+
+      // If patternIndex went from null to a value, the render object
+      // was created as RenderMarkdownParagraph but now needs to be
+      // a RenderCustomMarkdownBlock (or pattern-provided RenderMarkdownBlock).
+      if (newPatternIndex != null &&
+          existingRenderObject is RenderParagraph) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /// Updates an existing RenderObject with new block data.

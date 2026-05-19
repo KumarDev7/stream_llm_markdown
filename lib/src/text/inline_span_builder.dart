@@ -6,7 +6,17 @@ import '../theme/markdown_theme.dart';
 /// Builds TextSpans from inline Markdown content.
 class InlineSpanBuilder {
   /// Creates a new inline span builder.
-  const InlineSpanBuilder();
+  InlineSpanBuilder();
+
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  /// Disposes all gesture recognizers created by this builder.
+  void dispose() {
+    for (final recognizer in _recognizers) {
+      recognizer.dispose();
+    }
+    _recognizers.clear();
+  }
 
   /// Builds a TextSpan tree from inline Markdown.
   TextSpan build(
@@ -50,7 +60,7 @@ class InlineSpanBuilder {
       }
 
       // Inline LaTeX $...$
-      if (text[i] == r'$' && (i == 0 || text[i - 1] != r'\')) {
+      if (text[i] == r'$' && !_isDollarEscaped(text, i)) {
         final result = _parseInlineLatex(text, i, baseStyle);
         if (result != null) {
           spans.add(result.span);
@@ -148,7 +158,12 @@ class InlineSpanBuilder {
 
       // Line break (<br> or double space + newline)
       if (text[i] == '\n') {
-        if (i >= 2 && text.substring(i - 2, i) == '  ') {
+        // Character-by-character check for trailing double spaces before newline
+        var hasHardBreak = false;
+        if (i >= 2) {
+          hasHardBreak = text[i - 1] == ' ' && text[i - 2] == ' ';
+        }
+        if (hasHardBreak) {
           spans.add(const TextSpan(text: '\n'));
           i++;
           continue;
@@ -347,6 +362,7 @@ class InlineSpanBuilder {
     TapGestureRecognizer? recognizer;
     if (onLinkTapped != null) {
       recognizer = TapGestureRecognizer()..onTap = () => onLinkTapped(url);
+      _recognizers.add(recognizer);
     }
 
     // Parse nested inline elements in link text
@@ -401,6 +417,7 @@ class InlineSpanBuilder {
     TapGestureRecognizer? recognizer;
     if (onLinkTapped != null) {
       recognizer = TapGestureRecognizer()..onTap = () => onLinkTapped(url);
+      _recognizers.add(recognizer);
     }
 
     return _ParseResult(
@@ -471,7 +488,8 @@ class InlineSpanBuilder {
       if (text[i] == marker && text[i + 1] == marker) {
         // Make sure it's not *** (bold italic)
         if (i + 2 < text.length && text[i + 2] == marker) {
-          i++;
+          // Skip the entire *** sequence
+          i += 3;
           continue;
         }
 
@@ -508,6 +526,11 @@ class InlineSpanBuilder {
     // Don't match if followed by space
     if (i < text.length && text[i] == ' ') return null;
 
+    // For underscores, check word boundary at opening
+    if (marker == '_' && start > 0 && _isWordChar(text[start - 1])) {
+      return null;
+    }
+
     // Find closing *
     while (i < text.length) {
       if (text[i] == marker) {
@@ -519,6 +542,14 @@ class InlineSpanBuilder {
 
         final content = text.substring(start + 1, i);
         if (content.isEmpty) return null;
+
+        // For underscores, check word boundary at closing
+        if (marker == '_' &&
+            i + 1 < text.length &&
+            _isWordChar(text[i + 1])) {
+          i++;
+          continue;
+        }
 
         // Use theme's italic style if available
         final italicStyle = theme.italicStyle != null
@@ -660,7 +691,25 @@ class InlineSpanBuilder {
   }
 
   bool _isEscapable(String char) {
-    return r'\`*_{}[]()#+-.!~'.contains(char);
+    return r'\`*_{}[]()#+-.!~$'.contains(char);
+  }
+
+  /// Checks whether a `$` at [index] is escaped by an odd number of
+  /// preceding backslashes.
+  bool _isDollarEscaped(String text, int index) {
+    var backslashCount = 0;
+    var j = index - 1;
+    while (j >= 0 && text[j] == r'\') {
+      backslashCount++;
+      j--;
+    }
+    // Odd number of backslashes means the $ is escaped
+    return backslashCount.isOdd;
+  }
+
+  /// Checks if a character is a word character (letter, digit, or underscore).
+  bool _isWordChar(String char) {
+    return RegExp(r'[\w]').hasMatch(char);
   }
 }
 

@@ -74,8 +74,8 @@ class SyntaxHighlighter {
       case 'ts':
         return _tokenize(
           code,
-          [..._jsKeywords, ..._tsKeywords],
-          [..._jsTypes, ..._tsTypes],
+          {..._jsKeywords, ..._tsKeywords},
+          {..._jsTypes, ..._tsTypes},
           '//',
           '/*',
           '*/',
@@ -108,8 +108,8 @@ class SyntaxHighlighter {
       case 'c++':
         return _tokenize(
           code,
-          [..._cKeywords, ..._cppKeywords],
-          [..._cTypes, ..._cppTypes],
+          {..._cKeywords, ..._cppKeywords},
+          {..._cTypes, ..._cppTypes},
           '//',
           '/*',
           '*/',
@@ -151,7 +151,7 @@ class SyntaxHighlighter {
         );
       case 'ruby':
       case 'rb':
-        return _tokenize(code, _rubyKeywords, <String>[], '#');
+        return _tokenize(code, _rubyKeywords, <String>{}, '#');
       case 'php':
         return _tokenize(code, _phpKeywords, _phpTypes, '//', '/*', '*/');
       case 'sql':
@@ -164,7 +164,7 @@ class SyntaxHighlighter {
       case 'bash':
       case 'sh':
       case 'shell':
-        return _tokenize(code, _bashKeywords, <String>[], '#');
+        return _tokenize(code, _bashKeywords, <String>{}, '#');
       case 'html':
       case 'xml':
         return _tokenizeHtml(code);
@@ -178,7 +178,7 @@ class SyntaxHighlighter {
   Color _getColorForType(SyntaxTokenType type, SyntaxTheme theme) {
     switch (type) {
       case SyntaxTokenType.plain:
-        return theme.variable;
+        return theme.plain;
       case SyntaxTokenType.keyword:
         return theme.keyword;
       case SyntaxTokenType.string:
@@ -206,8 +206,8 @@ class SyntaxHighlighter {
 
   List<SyntaxToken> _tokenize(
     String code,
-    List<String> keywords,
-    List<String> types, [
+    Set<String> keywords,
+    Set<String> types, [
     String? singleLineComment,
     String? multiLineCommentStart,
     String? multiLineCommentEnd,
@@ -231,7 +231,7 @@ class SyntaxHighlighter {
 
       // Single-line comment
       if (singleLineComment != null &&
-          code.substring(i).startsWith(singleLineComment)) {
+          code.startsWith(singleLineComment, i)) {
         final start = i;
         while (i < code.length && code[i] != '\n') {
           i++;
@@ -244,11 +244,11 @@ class SyntaxHighlighter {
 
       // Multi-line comment
       if (multiLineCommentStart != null &&
-          code.substring(i).startsWith(multiLineCommentStart)) {
+          code.startsWith(multiLineCommentStart, i)) {
         final start = i;
         i += multiLineCommentStart.length;
         while (i < code.length &&
-            !code.substring(i).startsWith(multiLineCommentEnd ?? '')) {
+            !(multiLineCommentEnd != null && code.startsWith(multiLineCommentEnd, i))) {
           i++;
         }
         if (multiLineCommentEnd != null && i < code.length) {
@@ -402,7 +402,11 @@ class SyntaxHighlighter {
         continue;
       }
 
-      if (_isDigit(code[i]) || code[i] == '-') {
+      if (_isDigit(code[i]) ||
+          (code[i] == '-' &&
+              i + 1 < code.length &&
+              _isDigit(code[i + 1]) &&
+              _isJsonNegativeStart(code, i))) {
         final start = i;
         while (i < code.length && _isJsonNumberChar(code[i])) {
           i++;
@@ -412,12 +416,12 @@ class SyntaxHighlighter {
         continue;
       }
 
-      if (code.substring(i).startsWith('true') ||
-          code.substring(i).startsWith('false') ||
-          code.substring(i).startsWith('null')) {
-        final word = code.substring(i).startsWith('true')
+      if (code.startsWith('true', i) ||
+          code.startsWith('false', i) ||
+          code.startsWith('null', i)) {
+        final word = code.startsWith('true', i)
             ? 'true'
-            : code.substring(i).startsWith('false')
+            : code.startsWith('false', i)
                 ? 'false'
                 : 'null';
         tokens.add(SyntaxToken(word, SyntaxTokenType.keyword));
@@ -446,7 +450,7 @@ class SyntaxHighlighter {
           break;
         }
 
-        final keyMatch = RegExp(r'^[\w\-]+:').matchAsPrefix(line, i);
+        final keyMatch = _yamlKeyRe.matchAsPrefix(line, i);
         if (keyMatch != null) {
           final key = keyMatch.group(0)!;
           tokens
@@ -475,13 +479,13 @@ class SyntaxHighlighter {
           continue;
         }
 
-        final wordMatch = RegExp(r'[\w\-.]+').matchAsPrefix(line, i);
+        final wordMatch = _yamlWordRe.matchAsPrefix(line, i);
         if (wordMatch != null) {
           final word = wordMatch.group(0)!;
           SyntaxTokenType type;
           if (word == 'true' || word == 'false' || word == 'null') {
             type = SyntaxTokenType.keyword;
-          } else if (RegExp(r'^-?[0-9.]+$').hasMatch(word)) {
+          } else if (_yamlNumberRe.hasMatch(word)) {
             type = SyntaxTokenType.number;
           } else {
             type = SyntaxTokenType.string;
@@ -508,10 +512,10 @@ class SyntaxHighlighter {
     var i = 0;
 
     while (i < code.length) {
-      if (code.substring(i).startsWith('<!--')) {
+      if (code.startsWith('<!--', i)) {
         final start = i;
         i += 4;
-        while (i < code.length && !code.substring(i).startsWith('-->')) {
+        while (i < code.length && !code.startsWith('-->', i)) {
           i++;
         }
         if (i < code.length) i += 3;
@@ -626,10 +630,10 @@ class SyntaxHighlighter {
     var i = 0;
 
     while (i < code.length) {
-      if (code.substring(i).startsWith('/*')) {
+      if (code.startsWith('/*', i)) {
         final start = i;
         i += 2;
-        while (i < code.length && !code.substring(i).startsWith('*/')) {
+        while (i < code.length && !code.startsWith('*/', i)) {
           i++;
         }
         if (i < code.length) i += 2;
@@ -699,30 +703,163 @@ class SyntaxHighlighter {
     return tokens;
   }
 
-  // Helper methods
-  bool _isWhitespace(String char) => RegExp(r'\s').hasMatch(char);
-  bool _isDigit(String char) => RegExp('[0-9]').hasMatch(char);
-  bool _isWordChar(String char) => RegExp(r'[\w.]').hasMatch(char);
-  bool _isIdentifierStart(String char) => RegExp(r'[a-zA-Z_$]').hasMatch(char);
-  bool _isIdentifierChar(String char) => RegExp(r'[\w$]').hasMatch(char);
-  bool _isNumberChar(String char) => RegExp('[0-9.xXa-fA-FeE_]').hasMatch(char);
-  bool _isJsonNumberChar(String char) => RegExp(r'[0-9.eE+\-]').hasMatch(char);
-  bool _isOperator(String char) => RegExp(r'[+\-*/%=<>!&|^~?:]').hasMatch(char);
-  bool _isPunctuation(String char) => RegExp(r'[{}()\[\];,.]').hasMatch(char);
-  bool _isCssSelectorStart(String char) =>
-      RegExp(r'[a-zA-Z\-_#.@]').hasMatch(char);
-  bool _isCssSelectorChar(String char) => RegExp(r'[\w\-#.@]').hasMatch(char);
-  bool _isCssNumberChar(String char) => RegExp('[0-9.%a-zA-Z]').hasMatch(char);
+  // Helper methods using direct character code comparisons for performance
+  static final RegExp _classNameOnlyUpperRe = RegExp(r'^[A-Z_]+$');
+
+  // YAML tokenizer patterns
+  static final RegExp _yamlKeyRe = RegExp(r'[\w\-]+:');
+  static final RegExp _yamlWordRe = RegExp(r'[\w\-.]+');
+  static final RegExp _yamlNumberRe = RegExp(r'^-?[0-9.]+$');
+
+  bool _isWhitespace(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return c == 32 || c == 9 || c == 10 || c == 13; // space, tab, newline, carriage return
+  }
+
+  bool _isDigit(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return c >= 48 && c <= 57; // '0'-'9'
+  }
+
+  bool _isWordChar(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 65 && c <= 90) || // 'A'-'Z'
+        (c >= 97 && c <= 122) || // 'a'-'z'
+        (c >= 48 && c <= 57) || // '0'-'9'
+        c == 95 || c == 46; // '_', '.'
+  }
+
+  bool _isIdentifierStart(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 65 && c <= 90) || // 'A'-'Z'
+        (c >= 97 && c <= 122) || // 'a'-'z'
+        c == 95 || c == 36; // '_', '$'
+  }
+
+  bool _isIdentifierChar(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 65 && c <= 90) || // 'A'-'Z'
+        (c >= 97 && c <= 122) || // 'a'-'z'
+        (c >= 48 && c <= 57) || // '0'-'9'
+        c == 95 || c == 36; // '_', '$'
+  }
+
+  bool _isNumberChar(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 48 && c <= 57) || // '0'-'9'
+        (c >= 65 && c <= 70) || // 'A'-'F'
+        (c >= 97 && c <= 102) || // 'a'-'f'
+        c == 46 || // '.'
+        c == 120 || c == 88 || // 'x', 'X'
+        c == 101 || c == 69 || // 'e', 'E'
+        c == 95; // '_'
+  }
+
+  bool _isJsonNumberChar(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 48 && c <= 57) || // '0'-'9'
+        c == 46 || // '.'
+        c == 101 || c == 69 || // 'e', 'E'
+        c == 43 || c == 45; // '+', '-'
+  }
+
+  bool _isOperator(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return c == 33 || // !
+        c == 37 || // %
+        c == 38 || // &
+        c == 42 || // *
+        c == 43 || // +
+        c == 45 || // -
+        c == 47 || // /
+        c == 60 || // <
+        c == 61 || // =
+        c == 62 || // >
+        c == 63 || // ?
+        c == 94 || // ^
+        c == 124 || // | (pipe)
+        c == 126 || // ~
+        c == 58; // :
+  }
+
+  bool _isPunctuation(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return c == 123 || c == 125 || // { }
+        c == 40 || c == 41 || // ( )
+        c == 91 || c == 93 || // [ ]
+        c == 59 || // ;
+        c == 44 || // ,
+        c == 46; // .
+  }
+
+  bool _isCssSelectorStart(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 65 && c <= 90) || // 'A'-'Z'
+        (c >= 97 && c <= 122) || // 'a'-'z'
+        c == 45 || // '-'
+        c == 95 || // '_'
+        c == 35 || // '#'
+        c == 46 || // '.'
+        c == 64; // '@'
+  }
+
+  bool _isCssSelectorChar(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 65 && c <= 90) || // 'A'-'Z'
+        (c >= 97 && c <= 122) || // 'a'-'z'
+        (c >= 48 && c <= 57) || // '0'-'9'
+        c == 95 || // '_'
+        c == 45 || // '-'
+        c == 35 || // '#'
+        c == 46 || // '.'
+        c == 64; // '@'
+  }
+
+  bool _isCssNumberChar(String char) {
+    if (char.length != 1) return false;
+    final c = char.codeUnitAt(0);
+    return (c >= 48 && c <= 57) || // '0'-'9'
+        c == 46 || // '.'
+        c == 37 || // '%'
+        (c >= 65 && c <= 90) || // 'A'-'Z'
+        (c >= 97 && c <= 122); // 'a'-'z'
+  }
+
+  /// Checks if `-` at [index] in JSON [code] is the start of a negative number.
+  /// A `-` starts a number value only if the previous non-whitespace char
+  /// is `:`, `,`, `[`, or `{` (indicating start of a value).
+  bool _isJsonNegativeStart(String code, int index) {
+    var j = index - 1;
+    while (j >= 0 && _isWhitespace(code[j])) {
+      j--;
+    }
+    if (j < 0) return true;
+    final prevChar = code[j];
+    return prevChar == ':' || prevChar == ',' || prevChar == '[' || prevChar == '{';
+  }
 
   bool _isClassName(String word) {
     return word.isNotEmpty &&
-        word[0].toUpperCase() == word[0] &&
         word.length > 1 &&
-        !RegExp(r'^[A-Z_]+$').hasMatch(word);
+        // word[0] must be an uppercase letter (not _ or $)
+        word[0].toUpperCase() == word[0] &&
+        word[0].toLowerCase() != word[0] &&
+        !_classNameOnlyUpperRe.hasMatch(word);
   }
 
-  // Keyword lists
-  static const _dartKeywords = [
+  // Keyword sets
+  static final _dartKeywords = <String>{
     'abstract',
     'as',
     'assert',
@@ -789,8 +926,8 @@ class SyntaxHighlighter {
     'while',
     'with',
     'yield',
-  ];
-  static const _dartTypes = [
+  };
+  static final _dartTypes = <String>{
     'int',
     'double',
     'num',
@@ -807,8 +944,8 @@ class SyntaxHighlighter {
     'Never',
     'dynamic',
     'void',
-  ];
-  static const _jsKeywords = [
+  };
+  static final _jsKeywords = <String>{
     'await',
     'break',
     'case',
@@ -852,8 +989,8 @@ class SyntaxHighlighter {
     'yield',
     'async',
     'of',
-  ];
-  static const _jsTypes = [
+  };
+  static final _jsTypes = <String>{
     'Array',
     'Boolean',
     'Date',
@@ -872,8 +1009,8 @@ class SyntaxHighlighter {
     'Symbol',
     'WeakMap',
     'WeakSet',
-  ];
-  static const _tsKeywords = [
+  };
+  static final _tsKeywords = <String>{
     'abstract',
     'any',
     'as',
@@ -902,8 +1039,8 @@ class SyntaxHighlighter {
     'symbol',
     'type',
     'unknown',
-  ];
-  static const _tsTypes = [
+  };
+  static final _tsTypes = <String>{
     'Partial',
     'Required',
     'Readonly',
@@ -920,8 +1057,8 @@ class SyntaxHighlighter {
     'ThisParameterType',
     'OmitThisParameter',
     'ThisType',
-  ];
-  static const _pythonKeywords = [
+  };
+  static final _pythonKeywords = <String>{
     'False',
     'None',
     'True',
@@ -959,8 +1096,8 @@ class SyntaxHighlighter {
     'yield',
     'match',
     'case',
-  ];
-  static const _pythonTypes = [
+  };
+  static final _pythonTypes = <String>{
     'int',
     'float',
     'str',
@@ -975,8 +1112,8 @@ class SyntaxHighlighter {
     'memoryview',
     'range',
     'complex',
-  ];
-  static const _javaKeywords = [
+  };
+  static final _javaKeywords = <String>{
     'abstract',
     'assert',
     'boolean',
@@ -1034,8 +1171,8 @@ class SyntaxHighlighter {
     'record',
     'sealed',
     'permits',
-  ];
-  static const _javaTypes = [
+  };
+  static final _javaTypes = <String>{
     'String',
     'Integer',
     'Boolean',
@@ -1056,8 +1193,8 @@ class SyntaxHighlighter {
     'List',
     'Map',
     'Set',
-  ];
-  static const _cKeywords = [
+  };
+  static final _cKeywords = <String>{
     'auto',
     'break',
     'case',
@@ -1095,9 +1232,9 @@ class SyntaxHighlighter {
     '_Bool',
     '_Complex',
     '_Imaginary',
-  ];
-  static const _cTypes = ['size_t', 'ptrdiff_t', 'FILE', 'NULL'];
-  static const _cppKeywords = [
+  };
+  static final _cTypes = <String>{'size_t', 'ptrdiff_t', 'FILE', 'NULL'};
+  static final _cppKeywords = <String>{
     'alignas',
     'alignof',
     'and',
@@ -1164,8 +1301,8 @@ class SyntaxHighlighter {
     'xor_eq',
     'override',
     'final',
-  ];
-  static const _cppTypes = [
+  };
+  static final _cppTypes = <String>{
     'string',
     'vector',
     'map',
@@ -1185,8 +1322,8 @@ class SyntaxHighlighter {
     'optional',
     'variant',
     'any',
-  ];
-  static const _rustKeywords = [
+  };
+  static final _rustKeywords = <String>{
     'as',
     'async',
     'await',
@@ -1237,8 +1374,8 @@ class SyntaxHighlighter {
     'unsized',
     'virtual',
     'yield',
-  ];
-  static const _rustTypes = [
+  };
+  static final _rustTypes = <String>{
     'i8',
     'i16',
     'i32',
@@ -1269,8 +1406,8 @@ class SyntaxHighlighter {
     'HashSet',
     'BTreeMap',
     'BTreeSet',
-  ];
-  static const _goKeywords = [
+  };
+  static final _goKeywords = <String>{
     'break',
     'case',
     'chan',
@@ -1300,8 +1437,8 @@ class SyntaxHighlighter {
     'false',
     'nil',
     'iota',
-  ];
-  static const _goTypes = [
+  };
+  static final _goTypes = <String>{
     'bool',
     'byte',
     'complex64',
@@ -1322,8 +1459,8 @@ class SyntaxHighlighter {
     'uint32',
     'uint64',
     'uintptr',
-  ];
-  static const _swiftKeywords = [
+  };
+  static final _swiftKeywords = <String>{
     'associatedtype',
     'class',
     'deinit',
@@ -1380,8 +1517,8 @@ class SyntaxHighlighter {
     'async',
     'await',
     'actor',
-  ];
-  static const _swiftTypes = [
+  };
+  static final _swiftTypes = <String>{
     'Int',
     'Int8',
     'Int16',
@@ -1402,8 +1539,8 @@ class SyntaxHighlighter {
     'Set',
     'Optional',
     'Result',
-  ];
-  static const _kotlinKeywords = [
+  };
+  static final _kotlinKeywords = <String>{
     'as',
     'break',
     'class',
@@ -1478,8 +1615,8 @@ class SyntaxHighlighter {
     'suspend',
     'tailrec',
     'vararg',
-  ];
-  static const _kotlinTypes = [
+  };
+  static final _kotlinTypes = <String>{
     'Byte',
     'Short',
     'Int',
@@ -1499,8 +1636,8 @@ class SyntaxHighlighter {
     'Unit',
     'Nothing',
     'Any',
-  ];
-  static const _rubyKeywords = [
+  };
+  static final _rubyKeywords = <String>{
     'BEGIN',
     'END',
     'alias',
@@ -1556,8 +1693,8 @@ class SyntaxHighlighter {
     'raise',
     'lambda',
     'proc',
-  ];
-  static const _phpKeywords = [
+  };
+  static final _phpKeywords = <String>{
     'abstract',
     'and',
     'array',
@@ -1630,8 +1767,8 @@ class SyntaxHighlighter {
     'true',
     'false',
     'null',
-  ];
-  static const _phpTypes = [
+  };
+  static final _phpTypes = <String>{
     'int',
     'float',
     'bool',
@@ -1643,8 +1780,8 @@ class SyntaxHighlighter {
     'void',
     'mixed',
     'never',
-  ];
-  static const _sqlKeywords = [
+  };
+  static final _sqlKeywords = <String>{
     'ADD',
     'ALL',
     'ALTER',
@@ -1706,8 +1843,8 @@ class SyntaxHighlighter {
     'VIEW',
     'WHERE',
     'WITH',
-  ];
-  static const _sqlTypes = [
+  };
+  static final _sqlTypes = <String>{
     'INT',
     'INTEGER',
     'SMALLINT',
@@ -1735,8 +1872,8 @@ class SyntaxHighlighter {
     'BOOL',
     'BLOB',
     'CLOB',
-  ];
-  static const _bashKeywords = [
+  };
+  static final _bashKeywords = <String>{
     'if',
     'then',
     'else',
@@ -1780,5 +1917,5 @@ class SyntaxHighlighter {
     'printf',
     'read',
     'test',
-  ];
+  };
 }

@@ -20,7 +20,9 @@ class RenderMarkdownHeader extends RenderMarkdownBlock
   }
 
   TextPainter? _textPainter;
-  final _spanBuilder = const InlineSpanBuilder();
+  final _spanBuilder = InlineSpanBuilder();
+  double? _lastWidth;
+  String _lastContent = '';
 
   @override
   TextPainter? get selectableTextPainter => _textPainter;
@@ -72,8 +74,16 @@ class RenderMarkdownHeader extends RenderMarkdownBlock
 
   @override
   void performLayout() {
-    _textPainter?.dispose();
-    _textPainter = null;
+    // Only rebuild the painter if content, width, or level changed
+    final effectiveContent = '${_level}:${block.content}';
+    if (_textPainter == null ||
+        _lastWidth != constraints.maxWidth ||
+        _lastContent != effectiveContent) {
+      _textPainter?.dispose();
+      _textPainter = null;
+      _lastWidth = constraints.maxWidth;
+      _lastContent = effectiveContent;
+    }
 
     final painter = _getTextPainter(constraints.maxWidth);
     size = Size(constraints.maxWidth, painter.height);

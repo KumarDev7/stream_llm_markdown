@@ -13,6 +13,8 @@ class RenderMarkdownLatex extends RenderMarkdownBlock {
   });
 
   TextPainter? _textPainter;
+  double? _lastWidth;
+  String _lastContent = '';
 
   bool get _isInline => (block.metadata['inline'] as bool?) ?? false;
 
@@ -54,8 +56,15 @@ class RenderMarkdownLatex extends RenderMarkdownBlock {
 
   @override
   void performLayout() {
-    _textPainter?.dispose();
-    _textPainter = null;
+    // Only rebuild the painter if content or width changed
+    if (_textPainter == null ||
+        _lastWidth != constraints.maxWidth ||
+        block.content != _lastContent) {
+      _textPainter?.dispose();
+      _textPainter = null;
+      _lastWidth = constraints.maxWidth;
+      _lastContent = block.content;
+    }
 
     final height = computeIntrinsicHeight(constraints.maxWidth);
     size = Size(constraints.maxWidth, height);

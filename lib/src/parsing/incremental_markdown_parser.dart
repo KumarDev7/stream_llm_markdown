@@ -22,31 +22,33 @@ class IncrementalMarkdownParser {
     if (markdown.isEmpty) return [];
 
     _parseDepth++;
-    if (_parseDepth > _maxParseDepth) {
-      _parseDepth--;
-      return [];
-    }
-
-    final lines = const LineSplitter().convert(markdown);
-    final blocks = <MarkdownBlock>[];
-    var i = 0;
-
-    while (i < lines.length) {
-      final result = _parseBlock(lines, i, blocks.length);
-      if (result.block != null) {
-        blocks.add(result.block!);
+    try {
+      if (_parseDepth > _maxParseDepth) {
+        return [];
       }
-      i = result.nextIndex;
-    }
 
-    // Mark the last block as partial if the text doesn't end with newlines
-    if (blocks.isNotEmpty && !markdown.endsWith('\n\n') && !isNested) {
-      final lastBlock = blocks.removeLast();
-      blocks.add(lastBlock.copyWith(isPartial: true));
-    }
+      final lines = const LineSplitter().convert(markdown);
+      final blocks = <MarkdownBlock>[];
+      var i = 0;
 
-    _parseDepth--;
-    return blocks;
+      while (i < lines.length) {
+        final result = _parseBlock(lines, i, blocks.length);
+        if (result.block != null) {
+          blocks.add(result.block!);
+        }
+        i = result.nextIndex;
+      }
+
+      // Mark the last block as partial if the text doesn't end with newlines
+      if (blocks.isNotEmpty && !markdown.endsWith('\n\n') && !isNested) {
+        final lastBlock = blocks.removeLast();
+        blocks.add(lastBlock.copyWith(isPartial: true));
+      }
+
+      return blocks;
+    } finally {
+      _parseDepth--;
+    }
   }
 
   _ParseResult _parseBlock(List<String> lines, int index, int blockIndex) {
@@ -73,18 +75,15 @@ class IncrementalMarkdownParser {
       // We assume the custom block content is usually on one line or spans until the closing identifier.
 
       var content = line.substring(kCustomIdentifier.length);
-      var isClosed = false;
 
       if (content.contains(kCustomIdentifier)) {
         final endIndex = content.indexOf(kCustomIdentifier);
         content = content.substring(0, endIndex);
-        isClosed = true;
       } else {
-        // If it's not closed on this line, we might want to consume following lines until we find it.
-        // But for now let's implement basic single line or consume until closing.
-        // Let's implement multi-line consumption.
+        // Multi-line consumption — look for closing delimiter
         var j = index + 1;
         final buffer = StringBuffer(content);
+        var closed = false;
 
         while (j < lines.length) {
           final nextLine = lines[j];
@@ -92,20 +91,52 @@ class IncrementalMarkdownParser {
             final endIdx = nextLine.indexOf(kCustomIdentifier);
             buffer.write('\n${nextLine.substring(0, endIdx)}');
             content = buffer.toString();
-            isClosed = true;
-            // index + 1 is next line, but here we advanced to j.
-            // But wait, if we consume lines, we need to update index.
-            index = j; // Update index to the line we finished on
+            closed = true;
+            index = j;
             break;
           } else {
             buffer.write('\n$nextLine');
             j++;
           }
         }
-        if (!isClosed) {
-          content = buffer.toString();
-          index = j; // We consumed until j, which is length, or break.
-          // If j reached lines.length, we are at the end.
+
+        if (!closed) {
+          // No closing delimiter found — treat as partial block (like unclosed code blocks)
+          // Only consume the opening line, don't gobble the rest of the document
+          // Strip the opening delimiter from content so it's clean
+          final partialContent = content;
+          // Try to match patterns on the partial content (may match for simple patterns)
+          for (var pi = 0; pi < customPatterns.length; pi++) {
+            final p = customPatterns[pi];
+            final m = p.pattern.firstMatch(partialContent);
+            if (m != null) {
+              final partialBlockId = p.blockBuilder != null
+                  ? p.blockBuilder!(
+                      _generateId(MarkdownBlockType.custom, partialContent, blockIndex),
+                      partialContent,
+                      m,
+                    )
+                  : MarkdownBlock(
+                      id: _generateId(MarkdownBlockType.custom, partialContent, blockIndex),
+                      type: MarkdownBlockType.custom,
+                      content: partialContent,
+                      metadata: {'patternIndex': pi},
+                      isPartial: true,
+                    );
+              return _ParseResult(partialBlockId, index + 1);
+            }
+          }
+          // No pattern matched the partial content — return as custom block without patternIndex
+          return _ParseResult(
+            MarkdownBlock(
+              id: _generateId(MarkdownBlockType.custom, partialContent, blockIndex),
+              type: MarkdownBlockType.custom,
+              content: partialContent,
+              metadata: const <String, dynamic>{},
+              isPartial: true,
+            ),
+            index + 1,
+          );
         }
       }
 
@@ -132,13 +163,15 @@ class IncrementalMarkdownParser {
         }
       }
 
-      // If no pattern matches the content, what do we do?
-      // We could return a paragraph with the raw content,
-      // or a custom block that renders as error/fallback.
-      // For now, let's return a custom block with index -1 (generic).
-      // Or maybe just ignore it?
-      // Let's return a custom block but with no specific pattern index.
-      // The renderer will handle it (maybe show text?)
+      // If no custom pattern matches, return a paragraph block with the raw content
+      return _ParseResult(
+        MarkdownBlock(
+          id: _generateId(MarkdownBlockType.paragraph, line, blockIndex),
+          type: MarkdownBlockType.paragraph,
+          content: line,
+        ),
+        index + 1,
+      );
     }
 
     // Thematic break (---, ***, ___)
@@ -176,9 +209,13 @@ class IncrementalMarkdownParser {
       final language = codeMatch.group(2)?.trim() ?? '';
       final codeLines = <String>[];
       var j = index + 1;
+      final closingPattern = RegExp(
+        '^${RegExp.escape(fence[0])}{${fence.length},}\\s*\$',
+      );
 
       while (j < lines.length) {
-        if (lines[j].startsWith(fence[0] * fence.length)) {
+        final closingMatch = closingPattern.firstMatch(lines[j]);
+        if (closingMatch != null) {
           j++;
           break;
         }
@@ -249,11 +286,7 @@ class IncrementalMarkdownParser {
       final quoteLines = <String>[];
       var j = index;
 
-      var loopCount = 0;
-      const maxLoops = 1000;
-
-      while (j < lines.length && loopCount < maxLoops) {
-        loopCount++;
+      while (j < lines.length) {
         final currentLine = lines[j];
 
         if (currentLine.startsWith('>')) {
@@ -264,14 +297,23 @@ class IncrementalMarkdownParser {
           }
           quoteLines.add(content);
           j++;
+        } else if (currentLine.trim().isEmpty) {
+          // Blank line: include it but check if next line continues blockquote
+          quoteLines.add('');
+          j++;
+          if (j < lines.length && !lines[j].startsWith('>')) {
+            // Blank line followed by non-blockquote line ends the blockquote
+            // Remove the blank line we just added
+            quoteLines.removeLast();
+            break;
+          }
         } else {
-          // Any non-blockquote line (including empty lines) ends the blockquote
           break;
         }
       }
 
-      // Join and clean up the content
-      final quoteContent = quoteLines.join('\n').trim();
+      // Join and clean up the content (trimRight preserves leading whitespace)
+      final quoteContent = quoteLines.join('\n').trimRight();
 
       // Don't create empty blockquotes
       if (quoteContent.isEmpty) {
@@ -317,11 +359,17 @@ class IncrementalMarkdownParser {
       }
 
       while (j < lines.length) {
-        latexLines.add(lines[j]);
-        if (lines[j].trim().endsWith(r'$$')) {
+        final nextTrimmed = lines[j].trim();
+        // Closing $$ must be at start of line or preceded only by whitespace
+        if (nextTrimmed.startsWith(r'$$') &&
+            nextTrimmed.indexOf(r'$$', 2) == -1) {
+          // This line starts with $$ and has no more $$ after the opening pair
+          // (i.e. it's a closing fence, not an inline $$ pair)
+          latexLines.add(lines[j]);
           j++;
           break;
         }
+        latexLines.add(lines[j]);
         j++;
       }
 
@@ -375,13 +423,23 @@ class IncrementalMarkdownParser {
 
     // HTML block
     if (_htmlBlockPattern.hasMatch(line)) {
+      final htmlLines = <String>[line];
+      var j = index + 1;
+
+      // Continue until blank line (CommonMark HTML block type 6/7 end condition)
+      while (j < lines.length) {
+        if (lines[j].trim().isEmpty) break;
+        htmlLines.add(lines[j]);
+        j++;
+      }
+
       return _ParseResult(
         MarkdownBlock(
-          id: _generateId(MarkdownBlockType.html, line, blockIndex),
+          id: _generateId(MarkdownBlockType.html, htmlLines.join('\n'), blockIndex),
           type: MarkdownBlockType.html,
-          content: line,
+          content: htmlLines.join('\n'),
         ),
-        index + 1,
+        j,
       );
     }
 
@@ -394,6 +452,7 @@ class IncrementalMarkdownParser {
 
       // Stop at block-level elements
       if (currentLine.trim().isEmpty ||
+          currentLine.startsWith(kCustomIdentifier) ||
           _headerPattern.hasMatch(currentLine) ||
           _fencedCodePattern.hasMatch(currentLine) ||
           currentLine.startsWith('>') ||
@@ -415,11 +474,6 @@ class IncrementalMarkdownParser {
     }
 
     final content = paragraphLines.join('\n');
-
-    // Check for inline LaTeX in paragraph
-    if (content.contains(r'$') && !content.contains(r'$$')) {
-      // It's a paragraph with potential inline LaTeX, handle it as paragraph
-    }
 
     return _ParseResult(
       MarkdownBlock(
@@ -466,7 +520,7 @@ class IncrementalMarkdownParser {
           startNumber = int.tryParse(match.group(2) ?? '1') ?? 1;
         }
 
-        var content = match.group(isOrdered ? 3 : 2)!;
+        var content = match.group(isOrdered ? 4 : 2)!;
         bool? isChecked;
 
         // Check for task list item
@@ -501,7 +555,7 @@ class IncrementalMarkdownParser {
                 j,
                 blockIndex,
                 isOrdered: nestedOrdered,
-                indentLevel: indentLevel + 1 + (extraIndent!.length ~/ 2),
+                indentLevel: indentLevel + 1 + (extraIndent.length ~/ 2),
               );
 
               if (nestedResult.block != null) {
@@ -556,7 +610,7 @@ class IncrementalMarkdownParser {
                 j,
                 blockIndex,
                 isOrdered: nestedOrdered,
-                indentLevel: indentLevel + 1 + (extraIndent!.length ~/ 2),
+                indentLevel: indentLevel + 1 + (extraIndent.length ~/ 2),
               );
 
               if (nestedResult.block != null) {
@@ -675,7 +729,11 @@ class IncrementalMarkdownParser {
     final trimmed = line.trim();
     // Must contain | but not be just |
     // Also should have at least one cell (content before or after |)
-    if (!trimmed.contains('|') || trimmed.startsWith('|--')) {
+    if (!trimmed.contains('|')) {
+      return false;
+    }
+    // Don't confuse delimiter rows with data rows - check if it looks like a delimiter
+    if (_isTableDelimiter(trimmed)) {
       return false;
     }
     // Require at least 2 pipe characters OR pipe with content on at least one side
@@ -688,9 +746,16 @@ class IncrementalMarkdownParser {
 
   bool _isTableDelimiter(String line) {
     final trimmed = line.trim();
-    return trimmed.contains('|') &&
-        RegExp(r'^[\s|:\-]+$').hasMatch(trimmed) &&
-        trimmed.contains('-');
+    if (!trimmed.contains('|')) return false;
+    if (!RegExp(r'^[\s|:\-]+$').hasMatch(trimmed)) return false;
+    // Each cell must contain at least one dash
+    final cells = trimmed.split('|');
+    for (final cell in cells) {
+      if (cell.trim().contains('-')) {
+        return true; // At least one cell has a dash
+      }
+    }
+    return false;
   }
 
   bool _isThematicBreak(String line) {
@@ -716,12 +781,12 @@ class IncrementalMarkdownParser {
   }
 
   // Patterns
-  static final _headerPattern = RegExp(r'^(#{1,6})\s+(.*)$');
+  static final _headerPattern = RegExp(r'^(#{1,6})\s+(.*?)(?:\s+#+\s*)?$');
   static final _fencedCodePattern = RegExp(r'^(`{3,}|~{3,})(.*)$');
-  static final _orderedListPattern = RegExp(r'^(\s*)(\d+)\.\s+(.*)$');
+  static final _orderedListPattern = RegExp(r'^(\s*)(\d+)([.)])\s+(.*)$');
   static final _unorderedListPattern = RegExp(r'^(\s*)[-*+]\s+(.*)$');
   static final _taskListPattern = RegExp(r'^\[([xX ])\]\s+(.*)$');
-  static final _htmlBlockPattern = RegExp('^<([a-zA-Z][a-zA-Z0-9]*)[^>]*>');
+  static final _htmlBlockPattern = RegExp(r'^(<!--|<!|<([a-zA-Z][a-zA-Z0-9]*)[^>]*>)');
 }
 
 class _ParseResult {

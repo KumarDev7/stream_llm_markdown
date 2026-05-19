@@ -6,9 +6,9 @@ class MarkdownTheme {
   /// Creates a new Markdown theme.
   const MarkdownTheme({
     this.textStyle,
-    this.fontFamily,
+    @Deprecated('Use textStyle.fontFamily instead') this.fontFamily,
     this.linkStyle,
-    this.linkColor,
+    @Deprecated('Use linkStyle.color instead') this.linkColor,
     this.inlineCodeStyle,
     this.boldStyle,
     this.italicStyle,
@@ -20,7 +20,7 @@ class MarkdownTheme {
     this.listTheme,
     this.horizontalRuleTheme,
     this.blockSpacing,
-    this.paragraphSpacing,
+    @Deprecated('Use textStyle.height instead') this.paragraphSpacing,
   });
 
   /// Creates a default light theme.
@@ -31,10 +31,13 @@ class MarkdownTheme {
         color: Color(0xFF1F2937),
         height: 1.6,
       ),
+      // ignore: deprecated_member_use_from_same_package
+      fontFamily: null,
       linkStyle: const TextStyle(
         color: Color(0xFF2563EB),
         decoration: TextDecoration.underline,
       ),
+      // ignore: deprecated_member_use_from_same_package
       linkColor: const Color(0xFF2563EB),
       inlineCodeStyle: const TextStyle(
         fontFamily: 'monospace',
@@ -53,7 +56,8 @@ class MarkdownTheme {
       listTheme: const ListTheme(),
       horizontalRuleTheme: const HorizontalRuleTheme(),
       blockSpacing: 16,
-      paragraphSpacing: 1.6,
+      // ignore: deprecated_member_use_from_same_package
+      paragraphSpacing: null,
     );
   }
 
@@ -65,10 +69,13 @@ class MarkdownTheme {
         color: Color(0xFFF3F4F6),
         height: 1.6,
       ),
+      // ignore: deprecated_member_use_from_same_package
+      fontFamily: null,
       linkStyle: const TextStyle(
         color: Color(0xFF60A5FA),
         decoration: TextDecoration.underline,
       ),
+      // ignore: deprecated_member_use_from_same_package
       linkColor: const Color(0xFF60A5FA),
       inlineCodeStyle: const TextStyle(
         fontFamily: 'monospace',
@@ -87,7 +94,8 @@ class MarkdownTheme {
       listTheme: ListTheme.dark(),
       horizontalRuleTheme: HorizontalRuleTheme.dark(),
       blockSpacing: 16,
-      paragraphSpacing: 1.6,
+      // ignore: deprecated_member_use_from_same_package
+      paragraphSpacing: null,
     );
   }
 
@@ -95,12 +103,14 @@ class MarkdownTheme {
   final TextStyle? textStyle;
 
   /// Default font family for all text (can be overridden per element).
+  @Deprecated('Use textStyle.fontFamily instead')
   final String? fontFamily;
 
   /// Style for links (color, decoration, etc.).
   final TextStyle? linkStyle;
 
   /// Color for links (legacy, use linkStyle instead).
+  @Deprecated('Use linkStyle.color instead')
   final Color? linkColor;
 
   /// Style for inline code.
@@ -137,6 +147,7 @@ class MarkdownTheme {
   final double? blockSpacing;
 
   /// Line spacing within paragraphs.
+  @Deprecated('Use textStyle.height instead')
   final double? paragraphSpacing;
 
   /// Returns this theme with defaults applied.
@@ -144,8 +155,10 @@ class MarkdownTheme {
     final defaultTheme = MarkdownTheme.light();
     return MarkdownTheme(
       textStyle: textStyle ?? defaultTheme.textStyle,
+      // ignore: deprecated_member_use_from_same_package
       fontFamily: fontFamily ?? defaultTheme.fontFamily,
       linkStyle: linkStyle ?? defaultTheme.linkStyle,
+      // ignore: deprecated_member_use_from_same_package
       linkColor: linkColor ?? defaultTheme.linkColor,
       inlineCodeStyle: inlineCodeStyle ?? defaultTheme.inlineCodeStyle,
       boldStyle: boldStyle ?? defaultTheme.boldStyle,
@@ -159,6 +172,7 @@ class MarkdownTheme {
       horizontalRuleTheme:
           horizontalRuleTheme ?? defaultTheme.horizontalRuleTheme,
       blockSpacing: blockSpacing ?? defaultTheme.blockSpacing,
+      // ignore: deprecated_member_use_from_same_package
       paragraphSpacing: paragraphSpacing ?? defaultTheme.paragraphSpacing,
     );
   }
@@ -166,9 +180,9 @@ class MarkdownTheme {
   /// Creates a copy with modified fields.
   MarkdownTheme copyWith({
     TextStyle? textStyle,
-    String? fontFamily,
+    @Deprecated('Use textStyle.fontFamily instead') String? fontFamily,
     TextStyle? linkStyle,
-    Color? linkColor,
+    @Deprecated('Use linkStyle.color instead') Color? linkColor,
     TextStyle? inlineCodeStyle,
     TextStyle? boldStyle,
     TextStyle? italicStyle,
@@ -180,12 +194,14 @@ class MarkdownTheme {
     ListTheme? listTheme,
     HorizontalRuleTheme? horizontalRuleTheme,
     double? blockSpacing,
-    double? paragraphSpacing,
+    @Deprecated('Use textStyle.height instead') double? paragraphSpacing,
   }) {
     return MarkdownTheme(
       textStyle: textStyle ?? this.textStyle,
+      // ignore: deprecated_member_use_from_same_package
       fontFamily: fontFamily ?? this.fontFamily,
       linkStyle: linkStyle ?? this.linkStyle,
+      // ignore: deprecated_member_use_from_same_package
       linkColor: linkColor ?? this.linkColor,
       inlineCodeStyle: inlineCodeStyle ?? this.inlineCodeStyle,
       boldStyle: boldStyle ?? this.boldStyle,
@@ -198,9 +214,58 @@ class MarkdownTheme {
       listTheme: listTheme ?? this.listTheme,
       horizontalRuleTheme: horizontalRuleTheme ?? this.horizontalRuleTheme,
       blockSpacing: blockSpacing ?? this.blockSpacing,
+      // ignore: deprecated_member_use_from_same_package
       paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is MarkdownTheme &&
+        other.textStyle == textStyle &&
+        // ignore: deprecated_member_use_from_same_package
+        other.fontFamily == fontFamily &&
+        other.linkStyle == linkStyle &&
+        // ignore: deprecated_member_use_from_same_package
+        other.linkColor == linkColor &&
+        other.inlineCodeStyle == inlineCodeStyle &&
+        other.boldStyle == boldStyle &&
+        other.italicStyle == italicStyle &&
+        other.strikethroughStyle == strikethroughStyle &&
+        other.headerTheme == headerTheme &&
+        other.codeTheme == codeTheme &&
+        other.blockquoteTheme == blockquoteTheme &&
+        other.tableTheme == tableTheme &&
+        other.listTheme == listTheme &&
+        other.horizontalRuleTheme == horizontalRuleTheme &&
+        other.blockSpacing == blockSpacing &&
+        // ignore: deprecated_member_use_from_same_package
+        other.paragraphSpacing == paragraphSpacing;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        textStyle,
+        // ignore: deprecated_member_use_from_same_package
+        fontFamily,
+        linkStyle,
+        // ignore: deprecated_member_use_from_same_package
+        linkColor,
+        inlineCodeStyle,
+        boldStyle,
+        italicStyle,
+        strikethroughStyle,
+        headerTheme,
+        codeTheme,
+        blockquoteTheme,
+        tableTheme,
+        listTheme,
+        horizontalRuleTheme,
+        blockSpacing,
+        // ignore: deprecated_member_use_from_same_package
+        paragraphSpacing,
+      );
 }
 
 /// Theme for headers (H1-H6).
@@ -337,6 +402,40 @@ class HeaderTheme {
     color: Color(0xFF4B5563),
     height: 1.5,
   );
+
+  /// Creates a copy with modified fields.
+  HeaderTheme copyWith({
+    TextStyle? h1Style,
+    TextStyle? h2Style,
+    TextStyle? h3Style,
+    TextStyle? h4Style,
+    TextStyle? h5Style,
+    TextStyle? h6Style,
+  }) {
+    return HeaderTheme(
+      h1Style: h1Style ?? this.h1Style,
+      h2Style: h2Style ?? this.h2Style,
+      h3Style: h3Style ?? this.h3Style,
+      h4Style: h4Style ?? this.h4Style,
+      h5Style: h5Style ?? this.h5Style,
+      h6Style: h6Style ?? this.h6Style,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is HeaderTheme &&
+        other.h1Style == h1Style &&
+        other.h2Style == h2Style &&
+        other.h3Style == h3Style &&
+        other.h4Style == h4Style &&
+        other.h5Style == h5Style &&
+        other.h6Style == h6Style;
+  }
+
+  @override
+  int get hashCode => Object.hash(h1Style, h2Style, h3Style, h4Style, h5Style, h6Style);
 }
 
 /// Theme for code blocks.
@@ -417,6 +516,51 @@ class CodeBlockTheme {
 
   /// Syntax highlighting theme.
   final SyntaxTheme? syntaxTheme;
+
+  /// Creates a copy with modified fields.
+  CodeBlockTheme copyWith({
+    Color? backgroundColor,
+    TextStyle? textStyle,
+    double? borderRadius,
+    EdgeInsets? padding,
+    TextStyle? labelStyle,
+    Color? copyButtonColor,
+    SyntaxTheme? syntaxTheme,
+  }) {
+    return CodeBlockTheme(
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      textStyle: textStyle ?? this.textStyle,
+      borderRadius: borderRadius ?? this.borderRadius,
+      padding: padding ?? this.padding,
+      labelStyle: labelStyle ?? this.labelStyle,
+      copyButtonColor: copyButtonColor ?? this.copyButtonColor,
+      syntaxTheme: syntaxTheme ?? this.syntaxTheme,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CodeBlockTheme &&
+        other.backgroundColor == backgroundColor &&
+        other.textStyle == textStyle &&
+        other.borderRadius == borderRadius &&
+        other.padding == padding &&
+        other.labelStyle == labelStyle &&
+        other.copyButtonColor == copyButtonColor &&
+        other.syntaxTheme == syntaxTheme;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        backgroundColor,
+        textStyle,
+        borderRadius,
+        padding,
+        labelStyle,
+        copyButtonColor,
+        syntaxTheme,
+      );
 }
 
 /// Syntax highlighting color theme.
@@ -435,6 +579,7 @@ class SyntaxTheme {
     required this.punctuation,
     required this.annotation,
     required this.type,
+    required this.plain,
   });
 
   /// Creates a light syntax theme.
@@ -451,6 +596,7 @@ class SyntaxTheme {
       punctuation: Color(0xFF000000),
       annotation: Color(0xFF808000),
       type: Color(0xFF267F99),
+      plain: Color(0xFF001080),
     );
   }
 
@@ -468,6 +614,7 @@ class SyntaxTheme {
       punctuation: Color(0xFFD4D4D4),
       annotation: Color(0xFFD7BA7D),
       type: Color(0xFF4EC9B0),
+      plain: Color(0xFF9CDCFE),
     );
   }
 
@@ -503,6 +650,43 @@ class SyntaxTheme {
 
   /// Color for types.
   final Color type;
+
+  /// Color for plain text.
+  final Color plain;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SyntaxTheme &&
+        other.keyword == keyword &&
+        other.string == string &&
+        other.number == number &&
+        other.comment == comment &&
+        other.className == className &&
+        other.function == function &&
+        other.variable == variable &&
+        other.operator == operator &&
+        other.punctuation == punctuation &&
+        other.annotation == annotation &&
+        other.type == type &&
+        other.plain == plain;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        keyword,
+        string,
+        number,
+        comment,
+        className,
+        function,
+        variable,
+        operator,
+        punctuation,
+        annotation,
+        type,
+        plain,
+      );
 }
 
 /// Theme for blockquotes.
@@ -547,6 +731,43 @@ class BlockquoteTheme {
 
   /// Padding inside the blockquote.
   final EdgeInsets? padding;
+
+  /// Creates a copy with modified fields.
+  BlockquoteTheme copyWith({
+    Color? backgroundColor,
+    Color? borderColor,
+    double? borderWidth,
+    TextStyle? textStyle,
+    EdgeInsets? padding,
+  }) {
+    return BlockquoteTheme(
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      borderColor: borderColor ?? this.borderColor,
+      borderWidth: borderWidth ?? this.borderWidth,
+      textStyle: textStyle ?? this.textStyle,
+      padding: padding ?? this.padding,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is BlockquoteTheme &&
+        other.backgroundColor == backgroundColor &&
+        other.borderColor == borderColor &&
+        other.borderWidth == borderWidth &&
+        other.textStyle == textStyle &&
+        other.padding == padding;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        backgroundColor,
+        borderColor,
+        borderWidth,
+        textStyle,
+        padding,
+      );
 }
 
 /// Theme for tables.
@@ -603,6 +824,51 @@ class TableTheme {
 
   /// Padding inside cells.
   final EdgeInsets? cellPadding;
+
+  /// Creates a copy with modified fields.
+  TableTheme copyWith({
+    Color? headerBackgroundColor,
+    TextStyle? headerTextStyle,
+    Color? cellBackgroundColor,
+    TextStyle? cellTextStyle,
+    Color? borderColor,
+    double? borderWidth,
+    EdgeInsets? cellPadding,
+  }) {
+    return TableTheme(
+      headerBackgroundColor: headerBackgroundColor ?? this.headerBackgroundColor,
+      headerTextStyle: headerTextStyle ?? this.headerTextStyle,
+      cellBackgroundColor: cellBackgroundColor ?? this.cellBackgroundColor,
+      cellTextStyle: cellTextStyle ?? this.cellTextStyle,
+      borderColor: borderColor ?? this.borderColor,
+      borderWidth: borderWidth ?? this.borderWidth,
+      cellPadding: cellPadding ?? this.cellPadding,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TableTheme &&
+        other.headerBackgroundColor == headerBackgroundColor &&
+        other.headerTextStyle == headerTextStyle &&
+        other.cellBackgroundColor == cellBackgroundColor &&
+        other.cellTextStyle == cellTextStyle &&
+        other.borderColor == borderColor &&
+        other.borderWidth == borderWidth &&
+        other.cellPadding == cellPadding;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        headerBackgroundColor,
+        headerTextStyle,
+        cellBackgroundColor,
+        cellTextStyle,
+        borderColor,
+        borderWidth,
+        cellPadding,
+      );
 }
 
 /// Theme for lists.
@@ -660,6 +926,59 @@ class ListTheme {
 
   /// Text style for list items.
   final TextStyle? textStyle;
+
+  /// Creates a copy with modified fields.
+  ListTheme copyWith({
+    Color? bulletColor,
+    double? bulletSize,
+    TextStyle? numberStyle,
+    Color? checkboxCheckedColor,
+    Color? checkboxUncheckedColor,
+    double? checkboxSize,
+    double? indentWidth,
+    double? itemSpacing,
+    TextStyle? textStyle,
+  }) {
+    return ListTheme(
+      bulletColor: bulletColor ?? this.bulletColor,
+      bulletSize: bulletSize ?? this.bulletSize,
+      numberStyle: numberStyle ?? this.numberStyle,
+      checkboxCheckedColor: checkboxCheckedColor ?? this.checkboxCheckedColor,
+      checkboxUncheckedColor: checkboxUncheckedColor ?? this.checkboxUncheckedColor,
+      checkboxSize: checkboxSize ?? this.checkboxSize,
+      indentWidth: indentWidth ?? this.indentWidth,
+      itemSpacing: itemSpacing ?? this.itemSpacing,
+      textStyle: textStyle ?? this.textStyle,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ListTheme &&
+        other.bulletColor == bulletColor &&
+        other.bulletSize == bulletSize &&
+        other.numberStyle == numberStyle &&
+        other.checkboxCheckedColor == checkboxCheckedColor &&
+        other.checkboxUncheckedColor == checkboxUncheckedColor &&
+        other.checkboxSize == checkboxSize &&
+        other.indentWidth == indentWidth &&
+        other.itemSpacing == itemSpacing &&
+        other.textStyle == textStyle;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        bulletColor,
+        bulletSize,
+        numberStyle,
+        checkboxCheckedColor,
+        checkboxUncheckedColor,
+        checkboxSize,
+        indentWidth,
+        itemSpacing,
+        textStyle,
+      );
 }
 
 /// Theme for horizontal rules (thematic breaks).
@@ -699,6 +1018,43 @@ class HorizontalRuleTheme {
 
   /// Style of the rule (solid, dashed, dotted).
   final HorizontalRuleStyle? style;
+
+  /// Creates a copy with modified fields.
+  HorizontalRuleTheme copyWith({
+    Color? color,
+    double? thickness,
+    double? indent,
+    double? endIndent,
+    HorizontalRuleStyle? style,
+  }) {
+    return HorizontalRuleTheme(
+      color: color ?? this.color,
+      thickness: thickness ?? this.thickness,
+      indent: indent ?? this.indent,
+      endIndent: endIndent ?? this.endIndent,
+      style: style ?? this.style,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is HorizontalRuleTheme &&
+        other.color == color &&
+        other.thickness == thickness &&
+        other.indent == indent &&
+        other.endIndent == endIndent &&
+        other.style == style;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        color,
+        thickness,
+        indent,
+        endIndent,
+        style,
+      );
 }
 
 /// Style for horizontal rules.
