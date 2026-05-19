@@ -15,9 +15,7 @@ import '../render_objects/render_table.dart';
 import '../render_objects/render_thematic_break.dart';
 import '../theme/markdown_theme.dart';
 
-/// Factory for creating RenderObjects from MarkdownBlocks.
 class BlockRegistry {
-  /// Creates a RenderObject for the given block.
   static RenderMarkdownBlock createRenderObject({
     required MarkdownBlock block,
     required MarkdownTheme theme,
@@ -129,12 +127,6 @@ class BlockRegistry {
     }
   }
 
-  /// Determines whether an existing render object needs to be recreated
-  /// because its type doesn't match what the new block requires.
-  ///
-  /// This handles the streaming case where a custom block starts as a partial
-  /// (rendered as paragraph) and then transitions to a fully matched custom
-  /// block that needs a different render object type.
   static bool renderObjectTypeMismatch({
     required RenderMarkdownBlock existingRenderObject,
     required MarkdownBlock newBlock,
@@ -172,7 +164,6 @@ class BlockRegistry {
     return false;
   }
 
-  /// Updates an existing RenderObject with new block data.
   static void updateRenderObject({
     required RenderMarkdownBlock renderObject,
     required MarkdownBlock block,

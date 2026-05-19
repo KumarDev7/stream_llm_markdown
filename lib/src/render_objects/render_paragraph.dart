@@ -4,10 +4,8 @@ import '../text/inline_span_builder.dart';
 import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
-/// Renders a paragraph block.
 class RenderMarkdownParagraph extends RenderMarkdownBlock
     with SelectableTextMixin {
-  /// Creates a new render paragraph.
   RenderMarkdownParagraph({
     required super.block,
     required super.theme,
@@ -69,7 +67,6 @@ class RenderMarkdownParagraph extends RenderMarkdownBlock
 
   @override
   void performLayout() {
-    // Only rebuild the painter if content or width changed
     if (_textPainter == null ||
         _lastWidth != constraints.maxWidth ||
         block.content != _lastContent) {
@@ -82,7 +79,6 @@ class RenderMarkdownParagraph extends RenderMarkdownBlock
     final painter = _getTextPainter(constraints.maxWidth);
     size = Size(constraints.maxWidth, painter.height);
 
-    // Initialize selectable after layout
     initSelectableIfNeeded();
   }
 

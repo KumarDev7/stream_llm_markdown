@@ -3,21 +3,14 @@ import 'dart:convert';
 import 'markdown_block.dart';
 import 'markdown_pattern.dart';
 
-/// A streaming-aware incremental Markdown parser.
-///
-/// Parses Markdown text and emits a list of complete blocks plus
-/// one optional partial block for streaming content.
 class IncrementalMarkdownParser {
-  /// Creates a new incremental markdown parser.
   IncrementalMarkdownParser({this.customPatterns = const []});
 
-  /// Custom patterns to recognize during parsing.
   final List<MarkdownPattern> customPatterns;
 
   int _parseDepth = 0;
   static const int _maxParseDepth = 10;
 
-  /// Parses the given Markdown text into blocks.
   List<MarkdownBlock> parse(String markdown, {bool isNested = false}) {
     if (markdown.isEmpty) return [];
 
@@ -58,14 +51,11 @@ class IncrementalMarkdownParser {
 
     final line = lines[index];
 
-    // Skip empty lines
     if (line.trim().isEmpty) {
       return _ParseResult(null, index + 1);
     }
 
-    // Try to match block types in order of precedence
-
-    // Custom patterns (Unicode Identifier)
+    // Custom patterns
     // Format: 󠄞content󠄞 (U+EB1E)
     const kCustomIdentifier = '\uEB1E';
     if (line.startsWith(kCustomIdentifier)) {
@@ -140,7 +130,6 @@ class IncrementalMarkdownParser {
         }
       }
 
-      // Now we have the content. Find a matching pattern.
       for (var i = 0; i < customPatterns.length; i++) {
         final pattern = customPatterns[i];
         final match = pattern.pattern.firstMatch(content);
@@ -163,7 +152,6 @@ class IncrementalMarkdownParser {
         }
       }
 
-      // If no custom pattern matches, return a paragraph block with the raw content
       return _ParseResult(
         MarkdownBlock(
           id: _generateId(MarkdownBlockType.paragraph, line, blockIndex),
@@ -174,7 +162,6 @@ class IncrementalMarkdownParser {
       );
     }
 
-    // Thematic break (---, ***, ___)
     if (_isThematicBreak(line)) {
       return _ParseResult(
         MarkdownBlock(
@@ -186,7 +173,6 @@ class IncrementalMarkdownParser {
       );
     }
 
-    // ATX Headers (# Header)
     final headerMatch = _headerPattern.firstMatch(line);
     if (headerMatch != null) {
       final level = headerMatch.group(1)!.length;
@@ -202,7 +188,6 @@ class IncrementalMarkdownParser {
       );
     }
 
-    // Fenced code block (``` or ~~~)
     final codeMatch = _fencedCodePattern.firstMatch(line);
     if (codeMatch != null) {
       final fence = codeMatch.group(1)!;
@@ -238,7 +223,6 @@ class IncrementalMarkdownParser {
       );
     }
 
-    // Indented code block (4 spaces or 1 tab)
     if (line.startsWith('    ') || line.startsWith('\t')) {
       final codeLines = <String>[];
       var j = index;
@@ -281,7 +265,6 @@ class IncrementalMarkdownParser {
       }
     }
 
-    // Blockquote (> text)
     if (line.startsWith('>')) {
       final quoteLines = <String>[];
       var j = index;

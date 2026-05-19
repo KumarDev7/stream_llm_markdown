@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Theme configuration for the Markdown renderer.
 @immutable
 class MarkdownTheme {
-  /// Creates a new Markdown theme.
   const MarkdownTheme({
     this.textStyle,
     @Deprecated('Use textStyle.fontFamily instead') this.fontFamily,

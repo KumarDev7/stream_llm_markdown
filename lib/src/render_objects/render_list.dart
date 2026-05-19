@@ -7,9 +7,7 @@ import '../theme/markdown_theme.dart';
 import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
-/// Renders an ordered or unordered list.
 class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
-  /// Creates a new render list.
   RenderMarkdownList({
     required super.block,
     required super.theme,
@@ -25,11 +23,9 @@ class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
   final List<Rect> _checkboxRects = [];
   final List<_NestedListInfo> _nestedLists = [];
 
-  // Caching for performLayout
   double? _lastWidth;
   String _lastContent = '';
 
-  // Selection support
   final List<_SelectableItem> _selectableItems = [];
   String _cachedPlainText = '';
 
@@ -519,8 +515,6 @@ class RenderMarkdownList extends RenderMarkdownBlock with SelectableTextMixin {
 
     return Offset(xOffset, yOffset + endOffset.dy);
   }
-
-  // --- SelectableTextMixin Overrides ---
 
   @override
   String get plainText => _cachedPlainText;

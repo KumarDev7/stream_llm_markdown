@@ -381,8 +381,6 @@ class RenderMarkdownBlockquote extends RenderMarkdownBlock
     return Offset(xOffset, yOffset + endOffset.dy);
   }
 
-  // --- SelectableTextMixin Overrides ---
-
   @override
   String get plainText => _cachedPlainText;
 

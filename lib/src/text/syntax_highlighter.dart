@@ -2,19 +2,14 @@ import 'package:flutter/painting.dart';
 
 import '../theme/markdown_theme.dart';
 
-/// A token in syntax-highlighted code.
 class SyntaxToken {
-  /// Creates a new syntax token.
   const SyntaxToken(this.text, this.type);
 
-  /// The text content of this token.
   final String text;
 
-  /// The type of this token.
   final SyntaxTokenType type;
 }
 
-/// Types of syntax tokens.
 enum SyntaxTokenType {
   plain,
   keyword,
@@ -30,12 +25,9 @@ enum SyntaxTokenType {
   type,
 }
 
-/// A syntax highlighter for code blocks.
 class SyntaxHighlighter {
-  /// Creates a new syntax highlighter.
   const SyntaxHighlighter();
 
-  /// Highlights the given code and returns TextSpans.
   List<TextSpan> highlight(
     String code,
     String language,
@@ -52,7 +44,6 @@ class SyntaxHighlighter {
     }).toList();
   }
 
-  /// Tokenizes code into syntax tokens.
   List<SyntaxToken> tokenize(String code, String language) {
     final normalizedLanguage = language.toLowerCase();
 

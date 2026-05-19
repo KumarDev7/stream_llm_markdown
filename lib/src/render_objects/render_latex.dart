@@ -75,7 +75,6 @@ class RenderMarkdownLatex extends RenderMarkdownBlock {
     final canvas = context.canvas;
     final painter = _getTextPainter(constraints.maxWidth);
 
-    // Draw background for block latex
     if (!_isInline) {
       final bgRect = Rect.fromLTWH(
         offset.dx,
@@ -89,7 +88,6 @@ class RenderMarkdownLatex extends RenderMarkdownBlock {
       );
     }
 
-    // Center the text for block latex
     final textOffset = _isInline
         ? offset
         : Offset(

@@ -6,14 +6,10 @@ import 'package:flutter/rendering.dart';
 /// A mixin that provides text selection capabilities for RenderBox objects
 /// that render text using TextPainter.
 mixin SelectableTextMixin on RenderBox {
-  /// The text painter used for rendering.
   /// Subclasses with multiple painters can return null and override the methods below.
   TextPainter? get selectableTextPainter;
 
-  /// The offset at which text is painted.
   Offset get textPaintOffset => Offset.zero;
-
-  // --- Overridable methods for text layout access ---
 
   List<TextBox> getBoxesForSelection(TextSelection selection) {
     return selectableTextPainter?.getBoxesForSelection(selection) ?? [];
@@ -45,8 +41,6 @@ mixin SelectableTextMixin on RenderBox {
     return selectableTextPainter?.computeLineMetrics() ?? [];
   }
 
-  // --------------------------------------------------
-
   /// The selection registrar from the parent SelectionArea.
   SelectionRegistrar? _registrar;
   SelectionRegistrar? get registrar => _registrar;
@@ -63,7 +57,6 @@ mixin SelectableTextMixin on RenderBox {
 
   _SelectableFragment? _selectable;
 
-  /// Whether selection is enabled for this render object.
   bool _selectionEnabled = true;
   bool get selectionEnabled => _selectionEnabled;
   set selectionEnabled(bool value) {
@@ -77,7 +70,6 @@ mixin SelectableTextMixin on RenderBox {
     }
   }
 
-  /// The color used for selection highlights.
   Color? _selectionColor;
   Color? get selectionColor => _selectionColor;
   set selectionColor(Color? value) {
@@ -167,7 +159,6 @@ mixin SelectableTextMixin on RenderBox {
     }
   }
 
-  /// Gets the plain text content for this render object.
   String get selectableText => plainText;
 
   @override
@@ -263,12 +254,6 @@ class _SelectableFragment implements Selectable {
   }
 
   Offset _getOffsetForPosition(TextPosition position) {
-    // Return local position (relative to this render object)
-    // Note: textPaintOffset is handled in paintSelection for the LeaderLayer,
-    // but here we return the position relative to the render object's origin
-    // for the SelectionGeometry, which expects local coordinates.
-    // If textPaintOffset is used to shift painting, it should be included here too
-    // so that the SelectionArea knows where the text actually is.
     return paragraph.getOffsetForCaret(position, Rect.zero) +
         paragraph.textPaintOffset;
   }

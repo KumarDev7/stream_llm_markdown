@@ -5,9 +5,7 @@ import 'package:flutter/rendering.dart';
 import '../../parsing/markdown_block.dart';
 import '../../theme/markdown_theme.dart';
 
-/// Base class for all Markdown block RenderObjects.
 abstract class RenderMarkdownBlock extends RenderBox {
-  /// Creates a new render markdown block.
   RenderMarkdownBlock({
     required MarkdownBlock block,
     required MarkdownTheme theme,
@@ -18,7 +16,6 @@ abstract class RenderMarkdownBlock extends RenderBox {
         _onLinkTapped = onLinkTapped,
         _onCheckboxTapped = onCheckboxTapped;
 
-  /// The markdown block data.
   MarkdownBlock get block => _block;
   MarkdownBlock _block;
   set block(MarkdownBlock value) {
@@ -31,7 +28,6 @@ abstract class RenderMarkdownBlock extends RenderBox {
     markNeedsLayout();
   }
 
-  /// The theme for rendering.
   MarkdownTheme get theme => _theme;
   MarkdownTheme _theme;
   set theme(MarkdownTheme value) {
@@ -41,7 +37,6 @@ abstract class RenderMarkdownBlock extends RenderBox {
     markNeedsLayout();
   }
 
-  /// Callback when a link is tapped.
   void Function(String url)? get onLinkTapped => _onLinkTapped;
   void Function(String url)? _onLinkTapped;
   set onLinkTapped(void Function(String url)? value) {
@@ -49,7 +44,6 @@ abstract class RenderMarkdownBlock extends RenderBox {
     _onLinkTapped = value;
   }
 
-  /// Callback when a checkbox is tapped.
   void Function(int index, bool checked)? get onCheckboxTapped =>
       _onCheckboxTapped;
   void Function(int index, bool checked)? _onCheckboxTapped;
@@ -106,13 +100,11 @@ abstract class RenderMarkdownBlock extends RenderBox {
     size = computeSize(newConstraints);
   }
 
-  /// Computes the size for this block.
   Size computeSize(BoxConstraints constraints) {
     final height = computeIntrinsicHeight(constraints.maxWidth);
     return Size(constraints.maxWidth, height);
   }
 
-  /// Computes the intrinsic height for this block.
   double computeIntrinsicHeight(double width);
 
   @override

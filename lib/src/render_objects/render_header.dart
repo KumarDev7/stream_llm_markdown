@@ -5,10 +5,8 @@ import '../theme/markdown_theme.dart';
 import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
-/// Renders a header block (H1-H6).
 class RenderMarkdownHeader extends RenderMarkdownBlock
     with SelectableTextMixin {
-  /// Creates a new render header.
   RenderMarkdownHeader({
     required super.block,
     required super.theme,

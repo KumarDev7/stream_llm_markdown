@@ -6,10 +6,8 @@ import '../theme/markdown_theme.dart';
 import 'base/render_markdown_block.dart';
 import 'mixins/selectable_text_mixin.dart';
 
-/// Renders a code block with syntax highlighting.
 class RenderMarkdownCodeBlock extends RenderMarkdownBlock
     with SelectableTextMixin {
-  /// Creates a new render code block.
   RenderMarkdownCodeBlock({
     required super.block,
     required super.theme,
@@ -139,7 +137,7 @@ class RenderMarkdownCodeBlock extends RenderMarkdownBlock
 
     var height = padding.vertical + codePainter.height;
     if (_language.isNotEmpty) {
-      height += labelPainter.height + 8; // Label + spacing
+      height += labelPainter.height + 8;
     }
 
     return height;

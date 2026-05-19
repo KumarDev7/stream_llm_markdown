@@ -3,14 +3,11 @@ import 'package:flutter/painting.dart';
 
 import '../theme/markdown_theme.dart';
 
-/// Builds TextSpans from inline Markdown content.
 class InlineSpanBuilder {
-  /// Creates a new inline span builder.
   InlineSpanBuilder();
 
   final List<TapGestureRecognizer> _recognizers = [];
 
-  /// Disposes all gesture recognizers created by this builder.
   void dispose() {
     for (final recognizer in _recognizers) {
       recognizer.dispose();
@@ -18,7 +15,6 @@ class InlineSpanBuilder {
     _recognizers.clear();
   }
 
-  /// Builds a TextSpan tree from inline Markdown.
   TextSpan build(
     String text,
     TextStyle baseStyle,

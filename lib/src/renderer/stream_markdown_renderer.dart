@@ -20,7 +20,6 @@ import 'block_registry.dart';
 /// This widget provides maximum performance by using a flat list of custom
 /// RenderObjects instead of building a widget tree.
 class StreamMarkdownRenderer extends LeafRenderObjectWidget {
-  /// Creates a new stream markdown renderer.
   const StreamMarkdownRenderer({
     required this.markdownStream,
     this.theme,
@@ -40,7 +39,6 @@ class StreamMarkdownRenderer extends LeafRenderObjectWidget {
     super.key,
   });
 
-  /// Custom patterns to recognize and render.
   final List<MarkdownPattern> customPatterns;
 
   /// Whether text selection is enabled.
@@ -60,13 +58,10 @@ class StreamMarkdownRenderer extends LeafRenderObjectWidget {
   /// (not just the new chunk).
   final Stream<String> markdownStream;
 
-  /// The theme for rendering.
   final MarkdownTheme? theme;
 
-  /// Callback when a link is tapped.
   final void Function(String url)? onLinkTapped;
 
-  /// Callback when a checkbox is tapped.
   final void Function(int index, bool checked)? onCheckboxTapped;
 
   /// Whether to show a blinking cursor while streaming.
@@ -153,7 +148,6 @@ class StreamMarkdownRenderer extends LeafRenderObjectWidget {
 
 /// RenderObject for streaming Markdown content.
 class RenderStreamMarkdown extends RenderBox {
-  /// Creates a new render stream markdown.
   RenderStreamMarkdown({
     required Stream<String> markdownStream,
     required MarkdownTheme theme,
@@ -342,7 +336,6 @@ class RenderStreamMarkdown extends RenderBox {
     }
   }
 
-  /// The stream of Markdown content.
   Stream<String>? _markdownStream;
   Stream<String>? get markdownStream => _markdownStream;
   set markdownStream(Stream<String>? value) {

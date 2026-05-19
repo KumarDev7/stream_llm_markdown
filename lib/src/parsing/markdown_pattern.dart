@@ -6,9 +6,7 @@ import 'package:flutter/rendering.dart';
 import '../theme/markdown_theme.dart';
 import 'markdown_block.dart';
 
-/// Defines a custom markdown pattern and how to render it.
 class MarkdownPattern {
-  /// Creates a new markdown pattern.
   const MarkdownPattern({
     required this.pattern,
     required this.createRenderObject,
@@ -22,7 +20,6 @@ class MarkdownPattern {
   /// This pattern is then matched against the extracted `content`.
   final RegExp pattern;
 
-  /// Function to create a RenderObject for this pattern.
   final RenderBox Function(MarkdownBlock block, MarkdownTheme theme)
       createRenderObject;
 
